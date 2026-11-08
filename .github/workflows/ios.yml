@@ -104,7 +104,7 @@ jobs:
           shot() {
             name=$1; shift
             xcrun simctl terminate "$DEV" com.unitime.ios 2>/dev/null || true
-            xcrun simctl launch "$DEV" com.unitime.ios -screenshots "$@"
+            xcrun simctl launch "$DEV" com.unitime.ios -screenshots YES "$@"
             sleep 9
             if xcrun simctl spawn "$DEV" launchctl list | grep -q com.unitime.ios; then echo "$name: работает"; else echo "::error::$name: приложение упало"; fi
             xcrun simctl io "$DEV" screenshot "shots/$name.png"
