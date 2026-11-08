@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Первый запуск: вход в IIS (группа подставится сама) или ручной выбор группы, затем подгруппа.
+/// Первый запуск (OnboardingScreen): вход в IIS (группа подставится сама) или ручной выбор группы, затем подгруппа.
 struct OnboardingView: View {
     @Environment(\.look) private var C
     let onFinish: (String, Int) -> Void
@@ -15,14 +15,11 @@ struct OnboardingView: View {
             switch step {
             case .welcome: welcome
             case .login:
-                VStack(spacing: 0) {
-                    backBar { step = .welcome }
-                    LoginView { step = .fetching }
-                }
+                LoginView(onBack: { step = .welcome }) { step = .fetching }
             case .fetching:
                 VStack(spacing: 12) {
                     ProgressView().tint(C.accent)
-                    Text("Узнаю твою группу…").font(.system(size: 14)).foregroundStyle(C.muted)
+                    Text("Узнаю твою группу…").ct(14).foregroundStyle(C.muted)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .task {
@@ -31,51 +28,56 @@ struct OnboardingView: View {
                     if g.isBlank { step = .group } else { group = g; step = .subgroup }
                 }
             case .group:
-                VStack(spacing: 0) {
-                    backBar { step = .welcome }
-                    GroupStep(initial: group) { group = $0; step = .subgroup }
-                }
+                GroupStep(initial: group, onBack: { step = .welcome }) { group = $0; step = .subgroup }
             case .subgroup:
-                VStack(spacing: 0) {
-                    backBar { step = fromIis ? .welcome : .group }
-                    SubgroupStep(group: group) { onFinish(group, $0) }
-                }
+                SubgroupStep(group: group, onBack: { step = fromIis ? .welcome : .group }) { onFinish(group, $0) }
             }
         }
         .animation(.easeInOut(duration: 0.25), value: step)
     }
 
-    private func backBar(_ action: @escaping () -> Void) -> some View {
-        HStack { RoundButton(symbol: "chevron.left", label: "Назад", action: action); Spacer() }
-            .padding(.horizontal, 20).padding(.top, 8)
-    }
-
     private var welcome: some View {
         VStack(spacing: 0) {
-            Spacer()
+            // Иконка приложения: синий фон и шапочка, как адаптивная иконка Android.
             ZStack {
                 RoundedRectangle(cornerRadius: 28, style: .continuous).fill(Color(hex: 0x2B5CE6))
-                Image(systemName: "graduationcap.fill").font(.system(size: 50, weight: .semibold)).foregroundStyle(.white)
+                SchoolIcon().fill(.white).padding(104 * 26.4 / 108)
             }
             .frame(width: 104, height: 104)
-            Text("UniTime").font(.system(size: 34, weight: .heavy)).foregroundStyle(C.ink).padding(.top, 20)
+            Spacer().frame(height: 20)
+            Text("UniTime").ct(34, .heavy).foregroundStyle(C.ink)
+            Spacer().frame(height: 8)
             Text("Расписание БГУИР, следующая пара на экране блокировки, дедлайны и личный кабинет — в одном месте.")
-                .font(.system(size: 15)).foregroundStyle(C.muted).multilineTextAlignment(.center).padding(.top, 8)
+                .ct(15, lh: 21).foregroundStyle(C.muted).multilineTextAlignment(.center)
             Spacer().frame(height: 36)
             BigButton(text: "Войти через IIS") { fromIis = true; step = .login }
             Text("Группа подставится сама, а ещё будут оценки, пропуски и уведомления о новом.")
-                .font(.system(size: 12)).foregroundStyle(C.muted).multilineTextAlignment(.center).padding(.top, 6).padding(.bottom, 16)
+                .ct(12).foregroundStyle(C.muted).multilineTextAlignment(.center).padding(.top, 6).padding(.bottom, 16)
             BigButton(text: "Без входа — указать группу", primary: false) { fromIis = false; step = .group }
-            Spacer()
-            Text("made by molex1le").font(.system(size: 12)).foregroundStyle(C.muted).padding(.bottom, 12)
+            Spacer().frame(height: 24)
+            Text("made by molex1le").ct(12).foregroundStyle(C.muted)
         }
-        .padding(.horizontal, 24)
+        .padding(24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// Значок «school» из Material Icons (ic_launcher_foreground).
+struct SchoolIcon: Shape {
+    func path(in r: CGRect) -> Path {
+        let k = r.width / 24
+        func pt(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: r.minX + x * k, y: r.minY + y * k) }
+        var p = Path()
+        p.addLines([pt(12, 3), pt(1, 9), pt(12, 15), pt(21, 10.09), pt(21, 17), pt(23, 17), pt(23, 9)]); p.closeSubpath()
+        p.addLines([pt(5, 13.18), pt(5, 17.18), pt(12, 21), pt(19, 17.18), pt(19, 13.18), pt(12, 17)]); p.closeSubpath()
+        return p
     }
 }
 
 private struct GroupStep: View {
     @Environment(\.look) private var C
     let initial: String
+    let onBack: () -> Void
     let onPick: (String) -> Void
     @State private var query = ""
     @State private var groups: [Target]?
@@ -85,24 +87,24 @@ private struct GroupStep: View {
     var body: some View {
         let q = query.trimmingCharacters(in: .whitespaces)
         let matches = q.isEmpty ? [] : Array((groups ?? []).filter { $0.title.hasPrefix(q) }.prefix(8))
-        Screen {
+        Screen(spacing: 14, top: 12, bottom: 32) {
+            RoundButton(glyph: .back, label: "Назад", action: onBack)
             ScreenTitle("шаг 1 из 2", "Твоя группа")
-            Field(text: $query, placeholder: "Номер группы, например 572302", number: true, symbol: "magnifyingglass")
+            Field(text: $query, placeholder: "Номер группы, например 572302", number: true, glyph: .search)
                 .onChange(of: query) { _, v in
                     let digits = v.filter { $0.isNumber }
                     if digits != v { query = digits }
                     error = nil
                 }
-            if let e = error { Text(e).font(.system(size: 14)).foregroundStyle(C.error) }
+            if let e = error { Text(e).ct(14).foregroundStyle(C.error) }
             if !matches.isEmpty {
                 VStack(spacing: 0) {
                     ForEach(Array(matches.enumerated()), id: \.offset) { i, t in
                         if i > 0 { Divider1() }
                         Button { query = t.title; pick(t.title) } label: {
                             HStack(spacing: 12) {
-                                Text(t.title).font(.system(size: 16, weight: .bold)).foregroundStyle(C.ink)
-                                Text(t.sub).font(.system(size: 13)).foregroundStyle(C.muted).lineLimit(1)
-                                Spacer()
+                                Text(t.title).ct(16, .bold).foregroundStyle(C.ink).fixedSize()
+                                Text(t.sub).ct(13).foregroundStyle(C.muted).lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
                             }
                             .padding(.horizontal, 16).padding(.vertical, 12)
                             .contentShape(Rectangle())
@@ -110,10 +112,11 @@ private struct GroupStep: View {
                         .buttonStyle(.plain)
                     }
                 }
-                .card(18, padding: 0)
+                .background(C.card, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             }
-            if groups == nil { Text("Загружаю список групп…").font(.system(size: 13)).foregroundStyle(C.muted) }
-            BigButton(text: "Дальше", enabled: q.count >= 6, busy: checking) { pick(q) }
+            if groups == nil { Text("Загружаю список групп…").ct(13).foregroundStyle(C.muted) }
+            BigButton(text: "Дальше", enabled: q.count >= 6, busy: checking, height: 52) { pick(q) }
         }
         .onAppear { if query.isEmpty { query = initial } }
         .task { groups = try? await Store.shared.allGroups() }
@@ -134,14 +137,16 @@ private struct GroupStep: View {
 private struct SubgroupStep: View {
     @Environment(\.look) private var C
     let group: String
+    let onBack: () -> Void
     let onDone: (Int) -> Void
     @State private var sub = 0
 
     var body: some View {
-        Screen {
+        Screen(spacing: 14, top: 12, bottom: 32) {
+            RoundButton(glyph: .back, label: "Назад", action: onBack)
             ScreenTitle("группа \(group) · шаг 2 из 2", "Подгруппа")
             Text("Лабораторные часто идут по подгруппам. Выбери свою — увидишь только свои пары. Если не знаешь, оставь «Все», поменять можно в настройках.")
-                .font(.system(size: 14)).foregroundStyle(C.muted)
+                .ct(14, lh: 20).foregroundStyle(C.muted)
             Segmented(labels: ["Все", "1", "2"], selected: sub) { sub = $0 }
             BigButton(text: "Готово") { onDone(sub) }
         }

@@ -29,24 +29,24 @@ final class Iis {
         let title: String
         let kind: Kind
         let paths: [String]
-        let symbol: String
+        let glyph: GlyphKind
     }
 
     static let SECTIONS: [Section] = [
-        Section(title: "Профиль", kind: .profile, paths: ["/auth/user"], symbol: "person.crop.circle"),
-        Section(title: "Зачётка", kind: .markbook, paths: ["/markbook"], symbol: "doc.text"),
-        Section(title: "Успеваемость", kind: .performance, paths: ["/personal-rating"], symbol: "star"),
-        Section(title: "Пропуски", kind: .omissions, paths: ["/omissions-by-student", "/disrespectful-omissions-by-student"], symbol: "clock"),
-        Section(title: "Деканат", kind: .dean, paths: ["/certificate"], symbol: "graduationcap"),
+        Section(title: "Профиль", kind: .profile, paths: ["/auth/user"], glyph: .user),
+        Section(title: "Зачётка", kind: .markbook, paths: ["/markbook"], glyph: .doc),
+        Section(title: "Успеваемость", kind: .performance, paths: ["/personal-rating"], glyph: .star),
+        Section(title: "Пропуски", kind: .omissions, paths: ["/omissions-by-student", "/disrespectful-omissions-by-student"], glyph: .clock),
+        Section(title: "Деканат", kind: .dean, paths: ["/certificate"], glyph: .cap),
         Section(title: "Общежитие", kind: .dormitory, paths: [
             "/dormitory-queue-application",
             "/dormitory-queue-application/privileges",
             "/dormitory-queue-application/premium-penalty",
-        ], symbol: "building.2"),
-        Section(title: "Группа", kind: .group, paths: ["/student-groups/user-group-info"], symbol: "person.3"),
-        Section(title: "Библиотека", kind: .library, paths: ["/library/books"], symbol: "books.vertical"),
-        Section(title: "Уведомления", kind: .notifications, paths: ["/notifications?pageNumber=1&pageSize=30"], symbol: "bell"),
-        Section(title: "Настройки", kind: .settings, paths: ["/settings/last-password-change", "/settings/password-attempts", "/settings/contacts"], symbol: "gearshape"),
+        ], glyph: .pin),
+        Section(title: "Группа", kind: .group, paths: ["/student-groups/user-group-info"], glyph: .people),
+        Section(title: "Библиотека", kind: .library, paths: ["/library/books"], glyph: .calendar),
+        Section(title: "Уведомления", kind: .notifications, paths: ["/notifications?pageNumber=1&pageSize=30"], glyph: .bell),
+        Section(title: "Настройки", kind: .settings, paths: ["/settings/last-password-change", "/settings/password-attempts", "/settings/contacts"], glyph: .gear),
     ]
 
     static func section(_ kind: Kind) -> Section { SECTIONS.first { $0.kind == kind }! }

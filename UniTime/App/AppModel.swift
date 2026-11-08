@@ -13,13 +13,13 @@ enum Tab: Int, CaseIterable {
         }
     }
 
-    var symbol: String {
+    var glyph: GlyphKind {
         switch self {
-        case .today: return "sun.max"
-        case .feed: return "list.bullet.rectangle"
-        case .deadlines: return "flag"
-        case .profile: return "person.crop.circle"
-        case .search: return "magnifyingglass"
+        case .today: return .clock
+        case .feed: return .calendar
+        case .deadlines: return .flag
+        case .profile: return .user
+        case .search: return .search
         }
     }
 }
@@ -48,6 +48,8 @@ final class AppModel: ObservableObject {
     @Published var toast: String?
     @Published var editing: Deadline?
     @Published var update: AppUpdate.Release?
+    /// Диалог поверх всего приложения (как AlertDialog в Android).
+    @Published var overlay: AnyView?
     @Published var tab: Tab = .today
     @Published var paths: [Tab: [Route]] = [:]
 
@@ -72,6 +74,9 @@ final class AppModel: ObservableObject {
         if case .other(let t) = r { store.addRecent(t) }
         paths[tab, default: []].append(r)
     }
+
+    func present(_ v: AnyView) { withAnimation(.easeOut(duration: 0.15)) { overlay = v } }
+    func dismissOverlay() { withAnimation(.easeOut(duration: 0.15)) { overlay = nil } }
 
     func back() {
         if !(paths[tab] ?? []).isEmpty { paths[tab]?.removeLast() }
@@ -141,6 +146,30 @@ final class AppModel: ObservableObject {
                 else if manual { show("У тебя последняя версия \(AppUpdate.current)") }
             } catch {
                 if manual { show("Не удалось проверить: нет связи") }
+            }
+        }
+    }
+
+    /// Только для скриншотов в CI: открыть экран из аргумента запуска «-openRoute <имя>».
+    func openForScreenshot() {
+        guard let r = UserDefaults.standard.string(forKey: "openRoute") else { return }
+        Task {
+            for _ in 0..<40 where schedule == nil { try? await Task.sleep(nanoseconds: 250_000_000) }
+            switch r {
+            case "settings": open(.settings)
+            case "exams": open(.exams)
+            case "subjects": open(.subjects)
+            case "stats": open(.stats)
+            case "friends": open(.friends)
+            case "account": open(.account)
+            case "editor": newDeadline()
+            case "lesson":
+                if let o = schedule?.upcoming(now: now, subgroup: store.subgroup, count: 1).first { open(.lesson(o, own: true)) }
+            case "teacher":
+                if let t = schedule?.upcoming(now: now, subgroup: store.subgroup, count: 5).compactMap({ $0.lesson.teachers.first }).first {
+                    open(.other(Target(kind: "teacher", id: t.urlId, title: t.full, sub: t.title)))
+                }
+            default: break
             }
         }
     }

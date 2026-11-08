@@ -226,7 +226,6 @@ struct GlassModifier<S: InsettableShape>: ViewModifier {
     func body(content: Content) -> some View {
         content
             .background(shape.fill(C.glassFill(strong: strong)))
-            .background(.ultraThinMaterial, in: shape)
             .overlay(shape.strokeBorder(C.glassEdge, lineWidth: 1))
             .clipShape(shape)
     }
@@ -249,11 +248,8 @@ struct CardModifier: ViewModifier {
     let padding: CGFloat
 
     func body(content: Content) -> some View {
+        // В «Стекле» C.card уже полупрозрачный — как background(C.Card) в оригинале.
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
-        if C.style == .glass {
-            content.padding(padding).frame(maxWidth: .infinity, alignment: .leading).glass(shape)
-        } else {
-            content.padding(padding).frame(maxWidth: .infinity, alignment: .leading).background(C.card, in: shape)
-        }
+        content.padding(padding).frame(maxWidth: .infinity, alignment: .leading).background(C.card, in: shape)
     }
 }

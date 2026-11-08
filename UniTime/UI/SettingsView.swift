@@ -12,11 +12,13 @@ struct SettingsView: View {
 
     var body: some View {
         let store = model.store
-        Screen(spacing: 12) {
+        Screen(spacing: 12, top: 12, bottom: 32) {
+            BackBar()
             ScreenTitle(nil, "Настройки")
-            LinkRow(symbol: "person.crop.circle", title: "Личный кабинет IIS", sub: "Оценки, пропуски, льготы, взыскания") { model.open(.account) }
+            LinkRow(glyph: .user, title: "Личный кабинет IIS", sub: "Оценки, пропуски, льготы, взыскания",
+                    glyphSize: 24, subSize: 12, hPad: 16, vPad: 16) { model.open(.account) }
 
-            SectionLabel("Группа")
+            SectionLabel("Группа", top: 8)
             SettingsCard {
                 Field(text: $group, placeholder: "Номер группы", number: true)
                     .onChange(of: group) { _, v in
@@ -35,7 +37,7 @@ struct SettingsView: View {
                 }
             }
 
-            SectionLabel("Внешний вид")
+            SectionLabel("Внешний вид", top: 8)
             SettingsCard {
                 Label13("Тема")
                 // В списке «Авто, Светлая, Чёрная, Неон», а хранятся номера 0, 1, 3, 4.
@@ -55,7 +57,7 @@ struct SettingsView: View {
                 }
             }
 
-            SectionLabel("Скрытые пары")
+            SectionLabel("Скрытые пары", top: 8)
             SettingsCard {
                 Label13("Нажми на предмет, чтобы скрыть его целиком")
                 FlowLayout(spacing: 6) {
@@ -72,30 +74,30 @@ struct SettingsView: View {
                     Label13("Отдельные пары (скрыты из карточки пары)")
                     ForEach(single, id: \.self) { key in
                         HStack {
-                            Text(describeKey(key)).font(.system(size: 14)).foregroundStyle(C.ink)
+                            Text(describeKey(key)).ct(14).foregroundStyle(C.ink)
                             Spacer()
                             Button("Вернуть") { s.hidden.remove(key); model.reloadLocal() }
-                                .font(.system(size: 14, weight: .semibold)).foregroundStyle(C.accent)
+                                .ct(14, .semibold).foregroundStyle(C.accent)
                         }
                     }
                 }
             }
 
-            SectionLabel("Экран блокировки")
+            SectionLabel("Экран блокировки", top: 8)
             SettingsCard {
                 ToggleRow(title: "Live Activity с парой", sub: "Текущая или следующая пара с отсчётом на экране блокировки и в Dynamic Island", on: $s.liveActivity)
                 ToggleRow(title: "Прятать, когда пары кончились", sub: "И в выходные", on: $s.hideAfterLast)
                 ToggleRow(title: "Аудитория", on: $s.notifRoom)
                 ToggleRow(title: "Преподаватель", on: $s.notifTeacher)
                 Text("Ещё удобнее — виджет «Следующая пара» на экране блокировки: зажми экран блокировки → Настроить → Виджеты → UniTime.")
-                    .font(.system(size: 12)).foregroundStyle(C.muted)
+                    .ct(12).foregroundStyle(C.muted)
             }
             .onChange(of: s.liveActivity) { _, _ in model.reloadLocal() }
             .onChange(of: s.hideAfterLast) { _, _ in model.reloadLocal() }
             .onChange(of: s.notifRoom) { _, _ in model.reloadLocal() }
             .onChange(of: s.notifTeacher) { _, _ in model.reloadLocal() }
 
-            SectionLabel("Напоминания")
+            SectionLabel("Напоминания", top: 8)
             SettingsCard {
                 Label13("За сколько минут до пары")
                 FlowLayout(spacing: 6) {
@@ -105,24 +107,24 @@ struct SettingsView: View {
                 }
                 ToggleRow(title: "Звук", sub: "Для пар и дедлайнов", on: $s.remindSound)
                 ToggleRow(title: "Если расписание изменилось", sub: "Сравниваю при каждом обновлении", on: $s.notifyChanges)
-                Text("Включить напоминание для пары — в её карточке.").font(.system(size: 12)).foregroundStyle(C.muted)
+                Text("Включить напоминание для пары — в её карточке.").ct(12).foregroundStyle(C.muted)
             }
 
-            SectionLabel("Новое в личном кабинете")
+            SectionLabel("Новое в личном кабинете", top: 8)
             IisNotifyCard()
 
-            SectionLabel("Календарь")
+            SectionLabel("Календарь", top: 8)
             SettingsCard {
-                Text("Добавить все пары до конца семестра и экзамены в отдельный календарь «UniTime» на iPhone").font(.system(size: 14)).foregroundStyle(C.ink)
+                Text("Добавить все пары до конца семестра и экзамены в отдельный календарь «UniTime» на iPhone").ct(14).foregroundStyle(C.ink)
                 HStack(spacing: 8) {
                     Choice(calendarBusy ? "Добавляю…" : "Добавить", true) { calendar(add: true) }
                     Choice("Убрать оттуда", false) { calendar(add: false) }
                 }
             }
 
-            SectionLabel("Обновления")
+            SectionLabel("Обновления", top: 8)
             SettingsCard {
-                Text("Установлена UniTime \(AppUpdate.current)").font(.system(size: 15, weight: .medium)).foregroundStyle(C.ink)
+                Text("Установлена UniTime \(AppUpdate.current)").ct(15, .medium).foregroundStyle(C.ink)
                 ToggleRow(title: "Сообщать о новых версиях", sub: "Проверка раз в день; установка — через iLoader", on: $s.updateCheck)
                 HStack(spacing: 8) {
                     Choice("Проверить сейчас", false) { model.checkUpdate(manual: true) }
@@ -132,20 +134,21 @@ struct SettingsView: View {
                 }
             }
 
-            SectionLabel("Данные")
+            SectionLabel("Данные", top: 8)
             SettingsCard {
                 Text(store.lastFetch.map { d in let l = LocalDateTime(d); return "Обновлено \(l.date.day) \(month(l.date)), \(l.time)" } ?? "Расписание ещё не загружалось")
-                    .font(.system(size: 14)).foregroundStyle(C.ink)
+                    .ct(14).foregroundStyle(C.ink)
                 if !store.shared {
                     Text("Общее хранилище для виджетов недоступно — виджеты покажут «Откройте приложение». Обычно это значит, что установщик не выдал приложению App Group.")
-                        .font(.system(size: 12)).foregroundStyle(C.error)
+                        .ct(12).foregroundStyle(C.error)
                 }
                 Choice("Обновить сейчас", false) { model.load(force: true) }
             }
 
             // Пасхалка: 7 тапов по подписи открывают секретную статистику.
-            Text("UniTime · данные с iis.bsuir.by\nmade by molex1le · iOS-версия")
-                .font(.system(size: 12)).foregroundStyle(C.muted)
+            Text("UniTime · данные с iis.bsuir.by\nmade by molex1le")
+                .ct(12, lh: 17).foregroundStyle(C.muted)
+                .padding(.vertical, 4)
                 .padding(.top, 8)
                 .onTapGesture {
                     secretTaps += 1
@@ -186,7 +189,7 @@ private struct Label13: View {
     @Environment(\.look) private var C
     let text: String
     init(_ text: String) { self.text = text }
-    var body: some View { Text(text).font(.system(size: 13)).foregroundStyle(C.muted).frame(maxWidth: .infinity, alignment: .leading) }
+    var body: some View { Text(text).ct(13).foregroundStyle(C.muted).frame(maxWidth: .infinity, alignment: .leading) }
 }
 
 private struct SettingsCard<Content: View>: View {
@@ -208,7 +211,7 @@ private struct IisNotifyCard: View {
         SettingsCard {
             if !Iis.shared.loggedIn {
                 Text("Войди на вкладке «Профиль», чтобы получать уведомления о новых оценках, пропусках и сообщениях.")
-                    .font(.system(size: 14)).foregroundStyle(C.ink)
+                    .ct(14).foregroundStyle(C.ink)
             } else {
                 ToggleRow(title: "Уведомлять о новом", sub: "Оценки, пропуски, сообщения из IIS", on: $s.iisNotify)
                 if s.iisNotify {
@@ -221,26 +224,26 @@ private struct IisNotifyCard: View {
                     ToggleRow(title: "Сообщения из IIS", on: $s.iisMessages)
                     ToggleRow(title: "Поощрения и взыскания", on: $s.iisPenalties)
                     Text("iOS сама решает, когда разбудить приложение в фоне, поэтому проверки бывают реже. Открой приложение — проверка пройдёт сразу.")
-                        .font(.system(size: 12)).foregroundStyle(C.muted)
+                        .ct(12).foregroundStyle(C.muted)
                 }
                 Button { model.open(.iisSection(.settings)) } label: {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Пароль и контакты IIS").font(.system(size: 15, weight: .medium)).foregroundStyle(C.ink)
-                            Text("Последняя смена пароля, попытки входа, почта и телефон").font(.system(size: 12)).foregroundStyle(C.muted)
+                            Text("Пароль и контакты IIS").ct(15, .medium).foregroundStyle(C.ink)
+                            Text("Последняя смена пароля, попытки входа, почта и телефон").ct(12).foregroundStyle(C.muted)
                         }
                         Spacer()
-                        Image(systemName: "chevron.right").font(.system(size: 14, weight: .semibold)).foregroundStyle(C.chevron)
+                        Glyph(.chevron, C.chevron, 18)
                     }
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 if !hasPw {
                     Text("Пароль не сохранён: когда сайт завершит сессию, проверки остановятся до следующего входа. Чтобы этого не было, выйди и войди снова с «Запомнить пароль».")
-                        .font(.system(size: 12)).foregroundStyle(C.muted)
+                        .ct(12, lh: 17).foregroundStyle(C.muted)
                 }
                 Text(last.map { d in let l = LocalDateTime(d); return "Последняя проверка: \(l.date.day) \(month(l.date)), \(l.time)" } ?? "Ещё не проверялось")
-                    .font(.system(size: 13)).foregroundStyle(C.muted)
+                    .ct(13).foregroundStyle(C.muted)
                 FlowLayout(spacing: 8) {
                     Choice(checking ? "Проверяю…" : "Проверить сейчас", false) {
                         guard !checking else { return }

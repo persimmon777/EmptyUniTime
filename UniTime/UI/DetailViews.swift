@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: Карточка пары
+// MARK: Карточка пары (LessonScreen)
 
 struct LessonView: View {
     @EnvironmentObject private var model: AppModel
@@ -11,6 +11,7 @@ struct LessonView: View {
     let own: Bool
     @State private var note = ""
     @State private var remind = false
+    @State private var loaded = false
 
     var body: some View {
         let l = o.lesson
@@ -22,19 +23,20 @@ struct LessonView: View {
         }()
         let mine = model.deadlines.filter { $0.subject == l.subject && !$0.done }
 
-        Screen(spacing: 18) {
+        Screen(spacing: 18, top: 12, bottom: 24) {
+            BackBar()
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 6) {
                     TypeChip(type: l.type, full: true)
                     if l.subgroup != 0 { Pill(text: "Подгруппа \(l.subgroup)", bg: C.card, fg: C.ink, border: true) }
                     if let n = pairNumber(l.start) { Pill(text: "\(n) пара", bg: C.card, fg: C.ink, border: true) }
                 }
-                Text(l.fullTitle).font(.system(size: 30, weight: .heavy)).foregroundStyle(C.ink)
-                Text("\(dayTitle(o.date)) · \(whenText)").font(.system(size: 15)).foregroundStyle(C.muted)
+                Text(l.fullTitle).ct(30, .heavy, lh: 33).foregroundStyle(C.ink)
+                Text("\(dayTitle(o.date)) · \(whenText)").ct(15).foregroundStyle(C.muted)
                 if !l.note.isBlank {
                     HStack(spacing: 10) {
-                        Image(systemName: "bell.fill").foregroundStyle(C.softInk)
-                        Text(l.note).font(.system(size: 14, weight: .semibold)).foregroundStyle(C.softInk)
+                        Glyph(.bell, C.softInk, 18)
+                        Text(l.note).ct(14, .semibold, lh: 19).foregroundStyle(C.softInk)
                     }
                     .padding(.horizontal, 14).padding(.vertical, 10)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -45,8 +47,9 @@ struct LessonView: View {
                 InfoTile(label: "Время", value: "\(l.start)–\(l.end)")
                 InfoTile(label: "Аудитория", value: l.rooms.ifBlank("—"))
             }
+            .fixedSize(horizontal: false, vertical: true)
             if let p = roomPlace(l.rooms) {
-                LinkRow(symbol: "mappin.and.ellipse", title: ["Корпус \(p.corpus)", p.floor].filter { !$0.isBlank }.joined(separator: " · "),
+                LinkRow(glyph: .pin, title: ["Корпус \(p.corpus)", p.floor].filter { !$0.isBlank }.joined(separator: " · "),
                         sub: "Открыть на карте") {
                     let q = "БГУИР учебный корпус \(p.corpus), Минск".addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
                     if let url = URL(string: "http://maps.apple.com/?q=\(q)") { openURL(url) }
@@ -54,28 +57,29 @@ struct LessonView: View {
             }
             ForEach(l.teachers, id: \.self) { t in
                 VStack(alignment: .leading, spacing: 14) {
-                    Text("Преподаватель").font(.system(size: 12, weight: .medium)).foregroundStyle(C.muted)
+                    Text("Преподаватель").ct(12, .medium).foregroundStyle(C.muted)
                     HStack(spacing: 14) {
                         TeacherPhoto(teacher: t, size: 76)
                         VStack(alignment: .leading, spacing: 3) {
-                            Text(t.full).font(.system(size: 18, weight: .bold)).foregroundStyle(C.ink)
-                            if !t.title.isBlank { Text(t.title).font(.system(size: 13)).foregroundStyle(C.muted) }
+                            Text(t.full).ct(18, .bold, lh: 22).foregroundStyle(C.ink)
+                            if !t.title.isBlank { Text(t.title).ct(13).foregroundStyle(C.muted) }
                         }
                     }
                     if !t.urlId.isBlank {
                         Button { model.open(.other(Target(kind: "teacher", id: t.urlId, title: t.full, sub: t.title))) } label: {
-                            Text("Расписание и где сейчас").font(.system(size: 14, weight: .semibold)).foregroundStyle(C.ink)
+                            Text("Расписание и где сейчас").ct(14, .semibold).foregroundStyle(C.ink)
                                 .frame(maxWidth: .infinity, minHeight: 44)
                                 .background(C.ground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                .contentShape(Rectangle())
                         }
-                        .buttonStyle(Bounce())
+                        .buttonStyle(.plain)
                     }
                 }
                 .card(22)
             }
             if !own && !l.groups.isBlank {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Группы").font(.system(size: 12, weight: .medium)).foregroundStyle(C.muted)
+                    Text("Группы").ct(12, .medium).foregroundStyle(C.muted)
                     FlowLayout(spacing: 8) {
                         ForEach(l.groups.components(separatedBy: ", "), id: \.self) { g in
                             Pill(text: g, bg: C.ground, fg: C.ink) { model.open(.other(.group(g))) }
@@ -87,42 +91,53 @@ struct LessonView: View {
             if own {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack {
-                        Text("Дедлайны по предмету").font(.system(size: 12, weight: .medium)).foregroundStyle(C.muted)
+                        Text("Дедлайны по предмету").ct(12, .medium).foregroundStyle(C.muted)
                         Spacer()
-                        Button("+ Добавить") {
+                        Button {
                             let next = model.schedule?.nextOf(l.subject, now: now, subgroup: model.store.subgroup)
                             model.newDeadline(subject: l.subject, due: next?.startAt)
+                        } label: {
+                            Text("+ Добавить").ct(14, .semibold).foregroundStyle(C.accent).padding(6)
                         }
-                        .font(.system(size: 14, weight: .semibold)).foregroundStyle(C.accent)
+                        .buttonStyle(.plain)
                     }
-                    if mine.isEmpty { Text("Пока ничего не нужно сдавать").font(.system(size: 14)).foregroundStyle(C.ink) }
+                    if mine.isEmpty { Text("Пока ничего не нужно сдавать").ct(14).foregroundStyle(C.ink) }
                     ForEach(mine) { d in
                         Button { model.editing = d } label: {
                             HStack {
-                                Text(d.title).font(.system(size: 15)).foregroundStyle(C.ink).lineLimit(1)
+                                Text(d.title).ct(15).foregroundStyle(C.ink).lineLimit(1)
                                 Spacer()
-                                Text(deadlineLabel(d, now: now)).font(.system(size: 13)).foregroundStyle(d.due.isBefore(now) ? C.error : C.muted)
+                                Text(deadlineLabel(d, now: now)).ct(13).foregroundStyle(d.due.isBefore(now) ? C.error : C.muted)
                             }
                             .padding(.vertical, 6)
+                            .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                     }
                 }
                 .card(22)
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Заметка к паре").font(.system(size: 12, weight: .medium)).foregroundStyle(C.muted)
+                    Text("Заметка к паре").ct(12, .medium).foregroundStyle(C.muted)
                     Field(text: $note, placeholder: "Например: взять ноутбук")
-                        .onChange(of: note) { _, v in model.store.setNote(l.key, v) }
+                        .onChange(of: note) { _, v in if loaded { model.store.setNote(l.key, v) } }
                 }
                 .card(22)
-                ToggleRow(title: "Напомнить за \(settings.remindMinutes) минут", sub: "Каждую неделю для этой пары", on: $remind)
-                    .onChange(of: remind) { _, v in
-                        model.store.setReminder(l.key, v)
-                        if v { Task { await Notifications.requestPermission() } }
-                        model.reloadLocal()
+                HStack {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("Напомнить за \(settings.remindMinutes) минут").ct(15, .medium).foregroundStyle(C.ink)
+                        Text("Каждую неделю для этой пары").ct(12).foregroundStyle(C.muted)
                     }
-                    .padding(.vertical, -6)
-                    .card(18)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    MaterialSwitch(on: $remind)
+                }
+                .padding(.horizontal, 16).padding(.vertical, 8)
+                .background(C.card, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .onChange(of: remind) { _, v in
+                    guard loaded else { return }
+                    model.store.setReminder(l.key, v)
+                    if v { Task { await Notifications.requestPermission() } }
+                    model.reloadLocal()
+                }
                 VStack(spacing: 0) {
                     HideRow(title: "Скрыть эту пару", sub: "\(dayName(o.date, full: false)) \(l.start) каждую неделю") {
                         settings.hidden.insert(l.key); hidden()
@@ -132,13 +147,16 @@ struct LessonView: View {
                         settings.hidden.insert("S:\(l.subject)"); hidden()
                     }
                 }
-                .card(18, padding: 0)
-                Text("Скрытые пары можно вернуть в настройках.").font(.system(size: 12)).foregroundStyle(C.muted)
+                .background(C.card, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                Text("Скрытые пары можно вернуть в настройках.").ct(12).foregroundStyle(C.muted)
             }
         }
         .onAppear {
+            guard !loaded else { return }
             note = model.store.note(l.key)
             remind = model.store.reminders.contains(l.key)
+            DispatchQueue.main.async { loaded = true }
         }
     }
 
@@ -158,10 +176,10 @@ private struct HideRow: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 12) {
-                Image(systemName: "eye.slash").font(.system(size: 18)).foregroundStyle(C.muted)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(.system(size: 15, weight: .medium)).foregroundStyle(C.ink)
-                    Text(sub).font(.system(size: 12)).foregroundStyle(C.muted)
+                Glyph(.eyeOff, C.muted, 22)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(title).ct(15, .medium).foregroundStyle(C.ink)
+                    Text(sub).ct(12).foregroundStyle(C.muted)
                 }
                 Spacer()
             }
@@ -172,7 +190,7 @@ private struct HideRow: View {
     }
 }
 
-// MARK: Поиск
+// MARK: Поиск (SearchScreen)
 
 struct SearchView: View {
     @EnvironmentObject private var model: AppModel
@@ -191,35 +209,36 @@ struct SearchView: View {
         let source = tab == 0 ? groups : teachers
         let results = q.isEmpty ? [] : Array((source ?? []).filter { $0.title.lowercased().contains(q) || $0.sub.lowercased().contains(q) }.prefix(60))
 
-        Screen {
+        Screen(top: 20, bottom: 20) {
             ScreenTitle(nil, "Поиск")
-            Field(text: $query, placeholder: tab == 0 ? "Номер группы" : "Фамилия преподавателя", number: tab == 0, symbol: "magnifyingglass")
+            Field(text: $query, placeholder: tab == 0 ? "Номер группы" : "Фамилия преподавателя", number: tab == 0, glyph: .search)
             Segmented(labels: ["Группы", "Преподаватели"], selected: tab) { tab = $0 }
-            if let e = error { Text(e).font(.system(size: 14)).foregroundStyle(C.error) }
+            if let e = error { Text(e).ct(14).foregroundStyle(C.error) }
             if !q.isEmpty {
                 if source == nil && error == nil {
                     ProgressView().tint(C.accent).frame(maxWidth: .infinity)
                 } else if results.isEmpty {
-                    Text("Ничего не нашлось").font(.system(size: 14)).foregroundStyle(C.muted)
+                    Text("Ничего не нашлось").ct(14).foregroundStyle(C.muted)
                 } else {
                     TargetList(list: results) { model.open(.other($0)) }
                 }
             } else {
                 Button { model.open(.friends) } label: {
                     HStack(spacing: 12) {
-                        Image(systemName: "person.2.fill").font(.system(size: 22)).foregroundStyle(C.heroBar)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Друзья и общие окна").font(.system(size: 16, weight: .bold)).foregroundStyle(.white)
+                        Glyph(.people, C.heroBar, 26)
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text("Друзья и общие окна").ct(16, .bold).foregroundStyle(.white)
                             Text(friends.isEmpty ? "Узнай, когда вы оба свободны" : friends.map { $0.name }.joined(separator: ", "))
-                                .font(.system(size: 13)).foregroundStyle(C.heroMuted).lineLimit(1)
+                                .ct(13).foregroundStyle(C.heroMuted).lineLimit(1)
                         }
-                        Spacer()
-                        Image(systemName: "chevron.right").foregroundStyle(C.heroMuted)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        Glyph(.chevron, C.heroMuted, 18)
                     }
                     .padding(16)
                     .background(C.hero, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .contentShape(Rectangle())
                 }
-                .buttonStyle(Bounce())
+                .buttonStyle(.plain)
                 if !favs.isEmpty {
                     SectionLabel("Избранное")
                     TargetList(list: favs) { model.open(.other($0)) }
@@ -264,15 +283,15 @@ struct TargetList: View {
                     HStack(spacing: 12) {
                         let p = t.title.split(separator: " ")
                         let ab = t.isGroup ? String(t.title.prefix(2)) : "\(p.count > 1 ? String(p[1].prefix(1)) : "")\(p.first.map { String($0.prefix(1)) } ?? "")"
-                        Text(ab).font(.system(size: 15, weight: .bold)).foregroundStyle(t.isGroup ? C.ground : C.softInk)
+                        Text(ab).font(.roboto(15, .bold)).foregroundStyle(t.isGroup ? C.ground : C.softInk)
                             .frame(width: 44, height: 44)
                             .background(t.isGroup ? C.ink : C.soft, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(t.title).font(.system(size: 15, weight: .semibold)).foregroundStyle(C.ink).lineLimit(1)
-                            if !t.sub.isBlank { Text(t.sub).font(.system(size: 13)).foregroundStyle(C.muted).lineLimit(1) }
+                            Text(t.title).ct(15, .semibold).foregroundStyle(C.ink).lineLimit(1)
+                            if !t.sub.isBlank { Text(t.sub).ct(13).foregroundStyle(C.muted).lineLimit(1) }
                         }
-                        Spacer()
-                        Image(systemName: "chevron.right").font(.system(size: 14, weight: .semibold)).foregroundStyle(C.chevron)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        Glyph(.chevron, C.chevron, 18)
                     }
                     .padding(.horizontal, 14).padding(.vertical, 12)
                     .contentShape(Rectangle())
@@ -280,11 +299,12 @@ struct TargetList: View {
                 .buttonStyle(.plain)
             }
         }
-        .card(18, padding: 0)
+        .background(C.card, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 }
 
-// MARK: Чужое расписание
+// MARK: Чужое расписание (OtherScreen)
 
 struct OtherView: View {
     @EnvironmentObject private var model: AppModel
@@ -295,30 +315,28 @@ struct OtherView: View {
     @State private var fav = false
 
     var body: some View {
-        Group {
+        VStack(spacing: 0) {
+            HStack {
+                RoundButton(glyph: .back, label: "Назад") { model.back() }
+                Spacer()
+                RoundButton(glyph: fav ? .starFilled : .star, label: fav ? "Убрать из избранного" : "В избранное") {
+                    model.store.toggleFavorite(target)
+                    fav.toggle()
+                }
+            }
+            .padding(.horizontal, 12).padding(.top, 12)
             if let e = error {
-                Text(e).foregroundStyle(C.muted).padding(20).frame(maxHeight: .infinity, alignment: .top)
+                Text(e).ct(15).foregroundStyle(C.muted).padding(20).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             } else if let s = schedule {
                 ScheduleFeed(s: s, subgroup: 0, deadlines: [], showGroups: !target.isGroup, withExams: false, header: {
                     VStack(alignment: .leading, spacing: 10) {
                         ScreenTitle(target.sub.isBlank ? nil : target.sub, target.isGroup ? "Группа \(target.title)" : shortName(target.title))
                         if !target.isGroup { WhereNow(s: s) }
                     }
-                    .padding(.top, 4)
+                    .padding(.top, 8)
                 }) { o in model.open(.lesson(o, own: false)) }
             } else {
-                ProgressView().tint(C.accent).frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-        }
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    model.store.toggleFavorite(target)
-                    fav.toggle()
-                } label: {
-                    Image(systemName: fav ? "star.fill" : "star")
-                }
-                .accessibilityLabel(fav ? "Убрать из избранного" : "В избранное")
+                ProgressView().tint(C.accent).padding(40).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
         }
         .task(id: target) {
@@ -343,6 +361,9 @@ private struct WhereNow: View {
             if let n = next { return "Сейчас пар нет · следующая \(untilText(n, now: now)), \(n.lesson.rooms.ifBlank("—"))" }
             return "Пар в ближайшие недели нет"
         }()
-        Text(text).font(.system(size: 14)).foregroundStyle(C.ink).card(16, padding: 14)
+        Text(text).ct(14).foregroundStyle(C.ink)
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(C.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }

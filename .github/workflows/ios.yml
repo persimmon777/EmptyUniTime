@@ -118,39 +118,61 @@ jobs:
             CODE_SIGNING_ALLOWED=NO build > build.log 2>&1 || { grep -E "error:" -A4 build.log | head -200; exit 1; }
       - name: Скриншоты
         run: |
-          DEV=$(xcrun simctl list devices available | grep -m1 -E "iPhone 1[5-7] \(" | sed -E 's/.*\(([0-9A-F-]+)\).*/\1/')
-          echo "Симулятор: $DEV"
-          xcrun simctl boot "$DEV"
-          xcrun simctl bootstatus "$DEV" -b
-          xcrun simctl status_bar "$DEV" override --time "10:30" --batteryLevel 100 --cellularBars 4 || true
-          xcrun simctl install "$DEV" build/sim/Build/Products/Debug-iphonesimulator/UniTime.app
+          APP=build/sim/Build/Products/Debug-iphonesimulator/UniTime.app
           mkdir -p shots
-          shot() {
-            name=$1; shift
-            xcrun simctl terminate "$DEV" com.unitime.ios 2>/dev/null || true
-            xcrun simctl launch "$DEV" com.unitime.ios -screenshots YES "$@"
-            sleep 9
-            if xcrun simctl spawn "$DEV" launchctl list | grep -q com.unitime.ios; then echo "$name: работает"; else echo "::error::$name: приложение упало"; fi
-            xcrun simctl io "$DEV" screenshot "shots/$name.png"
+          run_set() {
+            DEV=$1; P=$2; shift 2
+            echo "Симулятор $P: $DEV"
+            xcrun simctl boot "$DEV" || true
+            xcrun simctl bootstatus "$DEV" -b
+            xcrun simctl status_bar "$DEV" override --time "10:30" --batteryLevel 100 --cellularBars 4 || true
+            xcrun simctl install "$DEV" "$APP"
+            for spec in "$@"; do
+              name=${spec%%:*}; args=${spec#*:}
+              xcrun simctl terminate "$DEV" com.unitime.ios 2>/dev/null || true
+              xcrun simctl launch "$DEV" com.unitime.ios -screenshots YES $args
+              sleep 9
+              if xcrun simctl spawn "$DEV" launchctl list | grep -q com.unitime.ios; then echo "$P-$name: работает"; else echo "::error::$P-$name: приложение упало"; fi
+              xcrun simctl io "$DEV" screenshot "shots/$P-$name.png"
+            done
+            xcrun simctl shutdown "$DEV" || true
           }
-          shot 0-onboarding
           G="-onboarded YES -group 572302 -subgroup 0"
-          shot 1-today $G -startTab 0
-          shot 2-feed $G -startTab 1
-          shot 3-deadlines $G -startTab 2
-          shot 4-profile $G -startTab 3
-          shot 5-search $G -startTab 4
-          shot 6-today-glass $G -startTab 0 -style 1
-          shot 7-today-color-dark $G -startTab 0 -style 2 -theme 3
-          shot 8-feed-neon $G -startTab 1 -theme 4
-          xcrun simctl spawn "$DEV" log show --last 3m --predicate 'process == "UniTime" AND messageType == fault' --style compact | tail -40 || true
+          BIG=$(xcrun simctl list devices available | grep -m1 -E "iPhone 16 \(" | sed -E 's/.*\(([0-9A-F-]+)\).*/\1/')
+          SE=$(xcrun simctl list devices available | grep -m1 -E "iPhone SE" | sed -E 's/.*\(([0-9A-F-]+)\).*/\1/')
+          run_set "$BIG" a \
+            "00-onboarding:" \
+            "01-today:$G -startTab 0" \
+            "02-feed:$G -startTab 1" \
+            "03-deadlines:$G -startTab 2" \
+            "04-profile:$G -startTab 3" \
+            "05-search:$G -startTab 4" \
+            "06-lesson:$G -openRoute lesson" \
+            "07-settings:$G -openRoute settings" \
+            "08-exams:$G -openRoute exams" \
+            "09-subjects:$G -openRoute subjects" \
+            "10-friends:$G -openRoute friends" \
+            "11-editor:$G -openRoute editor" \
+            "12-teacher:$G -openRoute teacher" \
+            "13-today-dark:$G -startTab 0 -theme 3" \
+            "14-feed-dark:$G -startTab 1 -theme 3" \
+            "15-glass:$G -startTab 0 -style 1 -theme 1" \
+            "16-color:$G -startTab 1 -style 2 -theme 3" \
+            "17-neon:$G -startTab 0 -theme 4 -style 0"
+          if [ -n "$SE" ]; then
+            run_set "$SE" b \
+              "01-today:$G -startTab 0 -theme 1 -style 0" \
+              "02-feed:$G -startTab 1" \
+              "06-lesson:$G -openRoute lesson" \
+              "07-settings:$G -openRoute settings"
+          fi
           ls shots
       - name: Скриншоты в лог
         run: |
           mkdir -p small
           for f in shots/*.png; do
             n=$(basename "$f" .png)
-            sips -Z 640 -s format jpeg -s formatOptions 45 "$f" --out "small/$n.jpg" >/dev/null
+            sips -Z 560 -s format jpeg -s formatOptions 40 "$f" --out "small/$n.jpg" >/dev/null
             echo "SHOT $n $(base64 -i small/$n.jpg | tr -d '\n')"
           done
       - uses: actions/upload-artifact@v4

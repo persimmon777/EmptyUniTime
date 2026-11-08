@@ -52,6 +52,13 @@ targets:
         UniTimeAppGroup: group.com.unitime.ios
         ALTAppGroups:
           - group.com.unitime.ios
+        UIAppFonts:
+          - Roboto-400.ttf
+          - Roboto-500.ttf
+          - Roboto-600.ttf
+          - Roboto-700.ttf
+          - Roboto-800.ttf
+          - Roboto-900.ttf
   UniTimeWidgets:
     type: app-extension
     platform: iOS
@@ -60,6 +67,8 @@ targets:
       - path: Shared
         excludes:
           - Stats.swift
+      - path: UniTime/Resources/Fonts
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.unitime.ios.widgets
@@ -74,5 +83,12 @@ targets:
         UniTimeAppGroup: group.com.unitime.ios
         ALTAppGroups:
           - group.com.unitime.ios
+        UIAppFonts:
+          - Roboto-400.ttf
+          - Roboto-500.ttf
+          - Roboto-600.ttf
+          - Roboto-700.ttf
+          - Roboto-800.ttf
+          - Roboto-900.ttf
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension

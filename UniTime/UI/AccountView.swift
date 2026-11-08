@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// Профиль (AccountScreen): вход в IIS или меню кабинета.
 struct AccountView: View {
     @EnvironmentObject private var model: AppModel
     let isTab: Bool
@@ -16,7 +17,7 @@ struct AccountView: View {
                     }
                 }
             } else {
-                LoginView(showLabs: true) { loggedIn = true }
+                LoginView(showBack: !isTab, showLabs: true) { loggedIn = true }
             }
         }
         .onAppear { loggedIn = Iis.shared.loggedIn }
@@ -27,6 +28,8 @@ struct LoginView: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.look) private var C
     @Environment(\.openURL) private var openURL
+    var showBack = false
+    var onBack: (() -> Void)? = nil
     var showLabs = false
     let onDone: () -> Void
     @State private var login = Iis.shared.login
@@ -39,23 +42,40 @@ struct LoginView: View {
 
     var body: some View {
         let ok = !login.isBlank && !password.isBlank && !busy
-        Screen {
+        Screen(spacing: 14, top: 12, bottom: 32) {
+            if let back = onBack { RoundButton(glyph: .back, label: "Назад", action: back) }
+            else if showBack { BackBar() }
             ScreenTitle("iis.bsuir.by", "Профиль")
             // «Предметы» считаются по расписанию — им вход в кабинет не нужен.
             if showLabs { LabsRow() }
             VStack(spacing: 12) {
                 Field(text: $login, placeholder: "Номер студенческого билета")
+                    .onChange(of: login) { _, v in
+                        let t = v.trimmingCharacters(in: .whitespaces)
+                        if t != v { login = t }
+                    }
                 Field(text: $password, placeholder: "Пароль", secure: true)
                 ToggleRow(title: "Запомнить устройство", sub: "Чтобы не входить каждый раз", on: $remember)
                 ToggleRow(title: "Запомнить пароль", sub: "Нужно для уведомлений о новых оценках и пропусках", on: $savePw)
-                if let e = error { Text(e).font(.system(size: 14)).foregroundStyle(C.error).frame(maxWidth: .infinity, alignment: .leading) }
-                BigButton(text: "Войти", enabled: ok, busy: busy) { submit() }
+                if let e = error { Text(e).ct(14).foregroundStyle(C.error).frame(maxWidth: .infinity, alignment: .leading) }
+                Button { submit() } label: {
+                    ZStack {
+                        if busy { ProgressView().tint(C.onAccent) }
+                        else { Text("Войти").ct(15, .bold).foregroundStyle(ok ? C.onAccent : C.muted) }
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 48)
+                    .background(ok ? C.accent : C.segment, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(!ok)
             }
-            .card(18)
+            .padding(16)
+            .background(C.card, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             if let url = redirect {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Сайт просит подтвердить вход").font(.system(size: 15, weight: .bold)).foregroundStyle(C.softInk)
-                    Text("Открой страницу, подтверди и вернись сюда войти ещё раз.").font(.system(size: 14)).foregroundStyle(C.softInk)
+                    Text("Сайт просит подтвердить вход").ct(15, .bold).foregroundStyle(C.softInk)
+                    Text("Открой страницу, подтверди и вернись сюда войти ещё раз.").ct(14).foregroundStyle(C.softInk)
                     Choice("Открыть iis.bsuir.by", true) {
                         if let u = URL(string: url.isBlank ? "https://iis.bsuir.by/login" : url) { openURL(u) }
                     }
@@ -64,8 +84,8 @@ struct LoginView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(C.soft, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             }
-            Text("Логин и пароль отправляются только на iis.bsuir.by — как при входе на сайте. Если включить «Запомнить пароль», он хранится на телефоне в связке ключей iOS и нужен, чтобы входить заново, когда сайт завершит сессию. «Выйти» стирает и сессию, и пароль.")
-                .font(.system(size: 12)).foregroundStyle(C.muted).lineSpacing(2)
+            Text("Логин и пароль отправляются только на iis.bsuir.by — как при входе на сайте. Если включить «Запомнить пароль», он хранится на телефоне в зашифрованном виде (в связке ключей iOS) и нужен, чтобы входить заново, когда сайт завершит сессию. «Выйти» стирает и сессию, и пароль.")
+                .ct(12, lh: 17).foregroundStyle(C.muted)
         }
     }
 
@@ -101,7 +121,8 @@ struct LoginView: View {
 private struct LabsRow: View {
     @EnvironmentObject private var model: AppModel
     var body: some View {
-        LinkRow(symbol: "flag", title: "Предметы", sub: "Сколько лекций, практик и лаб осталось") {
+        LinkRow(glyph: .flag, title: "Предметы", sub: "Сколько лекций, практик и лаб осталось",
+                hPad: 16, vPad: 12, spacing: 14, minHeight: 56, bounce: true) {
             if model.schedule != nil { model.open(.subjects) } else { model.show("Сначала загрузите расписание") }
         }
     }
@@ -114,7 +135,8 @@ private struct CabinetHome: View {
     let onLogout: () -> Void
 
     var body: some View {
-        Screen {
+        Screen(spacing: 14, top: 12, bottom: 32) {
+            if !isTab { BackBar() }
             ScreenTitle("личный кабинет IIS · \(Iis.shared.login)", "Профиль")
             LabsRow()
             VStack(spacing: 0) {
@@ -124,19 +146,20 @@ private struct CabinetHome: View {
                         if s.kind == .settings { model.open(.settings) } else { model.open(.iisSection(s.kind)) }
                     } label: {
                         HStack(spacing: 14) {
-                            Image(systemName: s.symbol).font(.system(size: 18)).foregroundStyle(C.accent).frame(width: 26)
-                            Text(s.title).font(.system(size: 15, weight: .medium)).foregroundStyle(C.ink)
-                            Spacer()
-                            Image(systemName: "chevron.right").font(.system(size: 14, weight: .semibold)).foregroundStyle(C.chevron)
+                            Glyph(s.glyph, C.accent, 22)
+                            Text(s.title).ct(15, .medium).foregroundStyle(C.ink).frame(maxWidth: .infinity, alignment: .leading)
+                            Glyph(.chevron, C.chevron, 18)
                         }
-                        .padding(.horizontal, 16).frame(minHeight: 52)
+                        .padding(.horizontal, 16).padding(.vertical, 12)
+                        .frame(minHeight: 52)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }
             }
-            .card(18, padding: 0)
-            Choice("Выйти из аккаунта", false, action: onLogout)
+            .background(C.card, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            HStack { Choice("Выйти из аккаунта", false, action: onLogout); Spacer() }
         }
         .task {
             // Пока смотришь меню, в фоне подтягиваем самые нужные разделы — к нажатию они уже готовы.
@@ -146,7 +169,7 @@ private struct CabinetHome: View {
     }
 }
 
-/// Раздел кабинета: сначала сохранённое, в фоне — свежее с сервера.
+/// Раздел кабинета (SectionScreen): сначала сохранённое, в фоне — свежее с сервера.
 struct IisSectionView: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.look) private var C
@@ -160,7 +183,8 @@ struct IisSectionView: View {
     @State private var expired = false
 
     var body: some View {
-        Screen(spacing: 12) {
+        Screen(spacing: 12, top: 12, bottom: 32) {
+            BackBar()
             let status: String? = {
                 if refreshing && shown != nil { return "обновляю…" }
                 if offline && shown != nil { return "нет связи · данные от \(ago(shownAt))" }
@@ -171,23 +195,28 @@ struct IisSectionView: View {
             if shown == nil && refreshing {
                 ProgressView().tint(C.accent).frame(maxWidth: .infinity).padding(24)
             } else if shown == nil && expired {
-                Text("Сессия закончилась — нужно войти заново.").font(.system(size: 15)).foregroundStyle(C.ink)
-                Choice("Войти", true, action: onExpired)
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Сессия закончилась — нужно войти заново.").ct(15).foregroundStyle(C.ink)
+                    Choice("Войти", true, action: onExpired)
+                }
             } else if shown == nil {
-                Text("Нет связи с iis.bsuir.by").font(.system(size: 14)).foregroundStyle(C.error)
+                Text("Нет связи с iis.bsuir.by").ct(14).foregroundStyle(C.error)
             } else if let rs = shown {
                 if expired {
                     HStack(spacing: 10) {
-                        Text("Сессия закончилась — показаны сохранённые данные.").font(.system(size: 13)).foregroundStyle(C.muted)
+                        Text("Сессия закончилась — показаны сохранённые данные.").ct(13).foregroundStyle(C.muted)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         Choice("Войти", true, action: onExpired)
                     }
                 }
                 content(rs)
-                Button("Скопировать данные для отладки") {
+                Button {
                     UIPasteboard.general.string = zip(section.paths, rs).map { "\($0) → \($1?.code ?? 0)\n\($1?.text ?? "")" }.joined(separator: "\n\n")
                     model.show("Скопировано")
+                } label: {
+                    Text("Скопировать данные для отладки").ct(12).foregroundStyle(C.muted).padding(.vertical, 8)
                 }
-                .font(.system(size: 12)).foregroundStyle(C.muted).padding(.vertical, 8)
+                .buttonStyle(.plain)
             }
         }
         .task(id: section) { await load() }
@@ -235,7 +264,7 @@ struct IisSectionView: View {
     }
 }
 
-/// «только что», «5 мин назад», «8 нояб., 18:20».
+/// «только что», «5 мин назад», «8 ноября, 18:20».
 private func ago(_ at: Date?) -> String {
     guard let at = at else { return "давно" }
     let min = Int(Date().timeIntervalSince(at) / 60)

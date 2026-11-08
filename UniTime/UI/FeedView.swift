@@ -47,7 +47,7 @@ struct FeedView: View {
     }
 }
 
-/// Лента до конца семестра с переключателем недель 1–4; используется и для чужих расписаний.
+/// Лента до конца семестра с переключателем недель 1–4 (ScheduleFeed); используется и для чужих расписаний.
 struct ScheduleFeed<Header: View>: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.look) private var C
@@ -63,6 +63,7 @@ struct ScheduleFeed<Header: View>: View {
     @State private var visible = Set<Int>()
     @State private var picked: Int?
     @State private var taps = [(Int, Date)]()
+    @State private var opened = Date()
     private static var secret: [Int] { [1, 2, 3, 4, 4, 3, 2, 1] }
 
     init(s: Schedule, subgroup: Int, deadlines: [Deadline], showGroups: Bool, withExams: Bool,
@@ -83,19 +84,20 @@ struct ScheduleFeed<Header: View>: View {
         let feed = buildFeed(s, subgroup: subgroup, today: today, withExams: withExams)
         let firstVisible = visible.min()
         let visibleWeek = firstVisible.map { s.weekNumber(LocalDate(epochDay: $0)) } ?? s.weekNumber(today)
-        let firstDay = feed.first?.days.first?.id
+        // Ключи первых элементов ленты: если их не видно — показываем кнопку «к сегодня».
+        let firstIds = Set(feed.flatMap { $0.days }.prefix(3).map { $0.id })
 
         ScrollViewReader { proxy in
             VStack(spacing: 0) {
                 Segmented(labels: (1...4).map { "\($0) нед." }, selected: (picked ?? visibleWeek) - 1) { i in
                     tapWeek(i + 1)
+                    picked = i + 1
                     if let target = feed.first(where: { $0.n == i + 1 }) {
-                        picked = i + 1
-                        withAnimation(.easeInOut(duration: 0.35)) { proxy.scrollTo("w\(target.id)", anchor: .top) }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { picked = nil }
+                        proxy.scrollTo("w\(target.id)", anchor: .top)
                     }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { picked = nil }
                 }
-                .padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 8)
+                .padding(.horizontal, 20).padding(.top, 20).padding(.bottom, 8)
 
                 ZStack(alignment: .bottomTrailing) {
                     ScrollView {
@@ -104,15 +106,16 @@ struct ScheduleFeed<Header: View>: View {
                             if feed.allSatisfy({ $0.days.allSatisfy { $0.list.isEmpty } }) {
                                 EmptyCard(title: "Пар не найдено", text: "Похоже, каникулы или расписание ещё не опубликовали.")
                             }
-                            ForEach(feed) { w in
+                            ForEach(Array(feed.enumerated()), id: \.element.id) { wi, w in
                                 Section {
-                                    ForEach(w.days) { d in
+                                    ForEach(Array(w.days.enumerated()), id: \.element.id) { di, d in
                                         Group {
                                             if d.list.isEmpty {
                                                 Text("\(dayName(d.date, full: false)), \(d.date.day) \(month(d.date)) · пар нет")
-                                                    .font(.system(size: 13)).foregroundStyle(C.muted).padding(.horizontal, 4).padding(.vertical, 2)
+                                                    .ct(13).foregroundStyle(C.muted).padding(.horizontal, 4).padding(.vertical, 2)
                                             } else {
                                                 DayBlock(date: d.date, list: d.list, now: now, deadlines: deadlines, showGroups: showGroups, onLesson: onLesson)
+                                                    .enter(wi * 7 + di)
                                             }
                                         }
                                         .id("d\(d.id)")
@@ -127,18 +130,18 @@ struct ScheduleFeed<Header: View>: View {
                         .padding(.horizontal, 20)
                         .padding(.bottom, 88)
                     }
-                    let away = firstDay.map { !visible.contains($0) } ?? false
-                    if away && !visible.isEmpty {
+                    .environment(\.enterClock, opened)
+                    let away = !visible.isEmpty && visible.isDisjoint(with: firstIds)
+                    if away {
                         Button {
-                            withAnimation(.easeInOut(duration: 0.45)) { proxy.scrollTo("top", anchor: .top) }
+                            withAnimation(.timingCurve(0.4, 0, 0.2, 1, duration: 0.45)) { proxy.scrollTo("top", anchor: .top) }
                         } label: {
-                            Image(systemName: "arrow.up").font(.system(size: 20, weight: .bold)).foregroundStyle(C.onAccent)
+                            Glyph(.arrowUp, C.onAccent, 26)
                                 .frame(width: 52, height: 52).background(C.accent, in: Circle())
-                                .shadow(color: .black.opacity(0.2), radius: 8, y: 3)
                         }
+                        .buttonStyle(.plain)
                         .padding(20)
                         .accessibilityLabel("К сегодня")
-                        .transition(.scale.combined(with: .opacity))
                     }
                 }
             }
@@ -158,6 +161,14 @@ struct ScheduleFeed<Header: View>: View {
     }
 }
 
+extension ScheduleFeed where Header == EmptyView {
+    init(s: Schedule, subgroup: Int, deadlines: [Deadline], showGroups: Bool, withExams: Bool,
+         onSecret: (() -> Void)? = nil, onLesson: @escaping (Occurrence) -> Void) {
+        self.init(s: s, subgroup: subgroup, deadlines: deadlines, showGroups: showGroups, withExams: withExams,
+                  onSecret: onSecret, header: { EmptyView() }, onLesson: onLesson)
+    }
+}
+
 private struct WeekHeader: View {
     @Environment(\.look) private var C
     let w: FeedWeek
@@ -165,11 +176,12 @@ private struct WeekHeader: View {
     var body: some View {
         let end = w.monday.plusDays(5)
         Text("\(w.n) неделя · \(w.monday.day) \(month(w.monday)) – \(end.day) \(month(end))")
-            .font(.system(size: 13, weight: .bold)).foregroundStyle(C.softInk)
+            .ct(13, .bold).foregroundStyle(C.softInk).lineLimit(1)
             .padding(.horizontal, 12).padding(.vertical, 7)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(C.soft, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             .padding(.vertical, 8)
+            // В «Стекле» без сплошной полосы под плашкой: она резала цветной фон.
             .background(C.style == .glass ? Color.clear : C.ground)
     }
 }
@@ -188,19 +200,19 @@ private struct DayBlock: View {
         let due = deadlines.filter { !$0.done && $0.due.date == date }
         let colored = C.style == .color
         VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .bottom) {
-                // Сегодняшний день выделен цветом.
+            HStack(alignment: .bottom, spacing: 0) {
+                // Сегодняшний день выделен цветом, без приписки «сегодня».
                 Text("\(dayName(date)), \(date.day) \(month(date))")
-                    .font(.system(size: 15, weight: .bold)).foregroundStyle(isToday ? C.accent : C.ink).lineLimit(1)
-                Spacer()
+                    .ct(15, .bold).foregroundStyle(isToday ? C.accent : C.ink).lineLimit(1)
+                Spacer(minLength: 8)
                 Text("\(pairs(list.count)) · \(list[0].lesson.start)–\(list.map { $0.lesson.end }.max()!)")
-                    .font(.system(size: 12)).foregroundStyle(C.muted).lineLimit(1)
+                    .ct(12).foregroundStyle(C.muted).lineLimit(1).fixedSize()
             }
             .padding(.top, 4)
             ForEach(due) { d in
                 HStack(spacing: 8) {
-                    Image(systemName: "flag.fill").font(.system(size: 13)).foregroundStyle(C.softInk)
-                    Text("\(d.title) · до \(d.due.time)").font(.system(size: 13, weight: .semibold)).foregroundStyle(C.softInk).lineLimit(1)
+                    Glyph(.flag, C.softInk, 16)
+                    Text("\(d.title) · до \(d.due.time)").ct(13, .semibold).foregroundStyle(C.softInk).lineLimit(1)
                 }
                 .padding(.horizontal, 12).padding(.vertical, 8)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -240,25 +252,26 @@ private struct CompactRow: View {
         let muted = tone.map { $0.ink.opacity(0.7) } ?? C.muted
         Button(action: action) {
             HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(l.start.description).font(.system(size: 14, weight: .bold)).foregroundStyle(faded && tone == nil ? muted : ink)
-                    Text(l.end.description).font(.system(size: 12)).foregroundStyle(muted)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(l.start.description).ct(14, .bold).foregroundStyle(faded && tone == nil ? muted : ink).fixedSize()
+                    Text(l.end.description).ct(12).foregroundStyle(muted).fixedSize()
                 }
                 .frame(width: 46, alignment: .leading)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(C.title(l)).font(.system(size: 14, weight: .medium)).foregroundStyle(faded && tone == nil ? muted : ink).lineLimit(1)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(C.title(l)).ct(14, .medium).foregroundStyle(faded && tone == nil ? muted : ink).lineLimit(1)
                     let sub = [C.pairNumbers ? pairNumber(l.start).map { "\($0) пара" } : nil,
                                showGroups && !l.groups.isBlank ? l.groups : nil,
                                l.subgroup != 0 ? "п/г \(l.subgroup)" : nil].compactMap { $0 }.joined(separator: " · ")
-                    if !sub.isBlank { Text(sub).font(.system(size: 12)).foregroundStyle(muted).lineLimit(1) }
+                    if !sub.isBlank { Text(sub).ct(12).foregroundStyle(muted).lineLimit(1) }
                     if !l.note.isBlank {
-                        Text(l.note).font(.system(size: 12, weight: .semibold)).foregroundStyle(tone?.ink ?? C.accent).lineLimit(2)
+                        Text(l.note).ct(12, .semibold).foregroundStyle(tone?.ink ?? C.accent).lineLimit(2)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                Text(l.rooms.replacingOccurrences(of: " к.", with: "").ifBlank("—")).font(.system(size: 12)).foregroundStyle(muted)
-                if let tone = tone, !l.type.isBlank {
-                    Text(l.type).font(.system(size: 12, weight: .bold)).foregroundStyle(tone.fill)
+                Text(l.rooms.hasSuffix(" к.") ? String(l.rooms.dropLast(3)) : l.rooms.ifBlank("—"))
+                    .ct(12).foregroundStyle(muted).lineLimit(1).fixedSize()
+                if let tone = tone {
+                    Text(l.type).ct(12, .bold).foregroundStyle(tone.fill).fixedSize()
                         .padding(.horizontal, 8).padding(.vertical, 4)
                         .background(tone.ink, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                 } else {
@@ -275,14 +288,6 @@ private struct CompactRow: View {
     }
 }
 
-extension ScheduleFeed where Header == EmptyView {
-    init(s: Schedule, subgroup: Int, deadlines: [Deadline], showGroups: Bool, withExams: Bool,
-         onSecret: (() -> Void)? = nil, onLesson: @escaping (Occurrence) -> Void) {
-        self.init(s: s, subgroup: subgroup, deadlines: deadlines, showGroups: showGroups, withExams: withExams,
-                  onSecret: onSecret, header: { EmptyView() }, onLesson: onLesson)
-    }
-}
-
 // MARK: Сессия
 
 struct ExamsView: View {
@@ -293,15 +298,16 @@ struct ExamsView: View {
     var body: some View {
         let now = model.now
         let today = now.date
-        Screen(spacing: 16) {
+        Screen(spacing: 16, top: 12, bottom: 20) {
+            BackBar()
             ScreenTitle(s.termStart.map { "Семестр \($0.year)" }, "Сессия")
             if let start = s.examsStart {
                 let days = today.days(to: start)
                 VStack(alignment: .leading, spacing: 16) {
-                    HStack(alignment: .lastTextBaseline, spacing: 10) {
-                        Text(days > 0 ? "\(days)" : "0").font(.system(size: 64, weight: .heavy)).foregroundStyle(.white)
-                        Text(days > 0 ? "\(plural(days, "день", "дня", "дней")) до сессии" : "сессия идёт")
-                            .font(.system(size: 17, weight: .semibold)).foregroundStyle(C.heroMuted)
+                    HStack(alignment: .bottom, spacing: 10) {
+                        Text(days > 0 ? "\(days)" : "0").ct(64, .heavy, lh: 64).foregroundStyle(.white)
+                        Text(days > 0 ? "дней до сессии" : "сессия идёт").ct(17, .semibold).foregroundStyle(C.heroMuted)
+                            .padding(.bottom, 8)
                     }
                     if let ts = s.termStart, let te = s.termEnd {
                         let frac = Double(ts.days(to: today)) / Double(max(ts.days(to: te), 1))
@@ -314,7 +320,7 @@ struct ExamsView: View {
                                 Spacer()
                                 Text("\(te.day) \(month(te).prefix(3))")
                             }
-                            .font(.system(size: 12)).foregroundStyle(C.heroMuted)
+                            .ct(12).foregroundStyle(C.heroMuted)
                         }
                     }
                 }
@@ -330,18 +336,20 @@ struct ExamsView: View {
                 InfoTile(label: "Сессия", value: range)
                 InfoTile(label: "Последняя пара", value: s.termEnd.map { "\($0.day) \(month($0))" } ?? "—")
             }
+            .fixedSize(horizontal: false, vertical: true)
             if s.exams.isEmpty {
                 EmptyCard(title: "Экзаменов пока нет", text: "Как только деканат опубликует расписание сессии, оно появится здесь.")
             } else {
                 ForEach(Array(s.exams.enumerated()), id: \.offset) { _, o in
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(dayTitle(o.date)).font(.system(size: 15, weight: .bold)).foregroundStyle(C.ink)
+                        Text(dayTitle(o.date)).ct(15, .bold).foregroundStyle(C.ink)
                         LessonRow(o: o, faded: o.endAt.isBefore(now), highlighted: false, showGroups: false) {
                             model.open(.lesson(o, own: true))
                         }
                     }
                 }
             }
+            Spacer().frame(height: 8)
         }
     }
 }

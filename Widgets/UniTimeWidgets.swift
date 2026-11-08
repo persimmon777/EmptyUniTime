@@ -125,9 +125,9 @@ struct NextPairView: View {
             case .accessoryCircular:
                 VStack(spacing: 0) {
                     if let o = o {
-                        Text(ongoing ? "до" : (o.date == now.date ? "в" : dayName(o.date, full: false))).font(.system(size: 10))
-                        Text(ongoing ? o.lesson.end.description : o.lesson.start.description).font(.system(size: 13, weight: .bold)).minimumScaleFactor(0.6)
-                        Text(shortRoom(o.lesson.rooms).prefix(6)).font(.system(size: 9)).lineLimit(1)
+                        Text(ongoing ? "до" : (o.date == now.date ? "в" : dayName(o.date, full: false))).font(.roboto(10))
+                        Text(ongoing ? o.lesson.end.description : o.lesson.start.description).font(.roboto(13, .bold)).minimumScaleFactor(0.6)
+                        Text(shortRoom(o.lesson.rooms).prefix(6)).font(.roboto(9)).lineLimit(1)
                     } else {
                         Image(systemName: "graduationcap.fill")
                     }
@@ -136,32 +136,32 @@ struct NextPairView: View {
             case .accessoryRectangular:
                 VStack(alignment: .leading, spacing: 1) {
                     if let o = o {
-                        Text(ongoing ? "Сейчас · до \(o.lesson.end)" : whenLabel(o, now)).font(.system(size: 12, weight: .semibold)).widgetAccentable()
-                        Text([o.lesson.subject, o.lesson.type].filter { !$0.isBlank }.joined(separator: " ")).font(.system(size: 15, weight: .bold)).lineLimit(1)
-                        Text([shortRoom(o.lesson.rooms), o.lesson.teacher].filter { !$0.isBlank }.joined(separator: " · ")).font(.system(size: 12)).lineLimit(1)
+                        Text(ongoing ? "Сейчас · до \(o.lesson.end)" : whenLabel(o, now)).font(.roboto(12, .semibold)).widgetAccentable()
+                        Text([o.lesson.subject, o.lesson.type].filter { !$0.isBlank }.joined(separator: " ")).font(.roboto(15, .bold)).lineLimit(1)
+                        Text([shortRoom(o.lesson.rooms), o.lesson.teacher].filter { !$0.isBlank }.joined(separator: " · ")).font(.roboto(12)).lineLimit(1)
                     } else {
-                        Text("UniTime").font(.system(size: 12, weight: .semibold))
-                        Text(emptyText(e)).font(.system(size: 13)).lineLimit(2)
+                        Text("UniTime").font(.roboto(12, .semibold))
+                        Text(emptyText(e)).font(.roboto(13)).lineLimit(2)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             case .systemSmall:
                 VStack(alignment: .leading, spacing: 4) {
                     if let o = o {
-                        Text(ongoing ? "СЕЙЧАС" : whenLabel(o, now).uppercased()).font(.system(size: 11, weight: .bold)).foregroundStyle(c.accent)
-                        Text(ongoing ? "до \(o.lesson.end)" : o.lesson.start.description).font(.system(size: 30, weight: .heavy)).foregroundStyle(c.ink)
+                        Text(ongoing ? "СЕЙЧАС" : whenLabel(o, now).uppercased()).font(.roboto(11, .bold)).foregroundStyle(c.accent)
+                        Text(ongoing ? "до \(o.lesson.end)" : o.lesson.start.description).font(.roboto(30, .heavy)).foregroundStyle(c.ink)
                             .minimumScaleFactor(0.7)
-                        Text(shortRoom(o.lesson.rooms).ifBlank(" ")).font(.system(size: 15, weight: .bold)).foregroundStyle(c.accent).lineLimit(1)
+                        Text(shortRoom(o.lesson.rooms).ifBlank(" ")).font(.roboto(15, .bold)).foregroundStyle(c.accent).lineLimit(1)
                         Spacer(minLength: 0)
-                        Text([o.lesson.subject, o.lesson.type].filter { !$0.isBlank }.joined(separator: " ")).font(.system(size: 14, weight: .semibold))
+                        Text([o.lesson.subject, o.lesson.type].filter { !$0.isBlank }.joined(separator: " ")).font(.roboto(14, .semibold))
                             .foregroundStyle(c.ink).lineLimit(2)
                         if !ongoing && o.date == now.date {
-                            Text(o.startAt.toDate(), style: .relative).font(.system(size: 12)).foregroundStyle(c.muted).lineLimit(1)
+                            Text(o.startAt.toDate(), style: .relative).font(.roboto(12)).foregroundStyle(c.muted).lineLimit(1)
                         }
                     } else {
                         Image(systemName: "graduationcap.fill").foregroundStyle(c.accent)
                         Spacer()
-                        Text(emptyText(e)).font(.system(size: 13, weight: .semibold)).foregroundStyle(c.muted)
+                        Text(emptyText(e)).font(.roboto(13, .semibold)).foregroundStyle(c.muted)
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
@@ -190,31 +190,31 @@ private struct MediumNext: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text("\(dayName(today, full: false)), \(today.day)" + (e.schedule.map { " · \($0.weekNumber(today)) неделя" } ?? ""))
-                    .font(.system(size: 12, weight: .medium)).foregroundStyle(c.muted)
+                    .font(.roboto(12, .medium)).foregroundStyle(c.muted)
                 Spacer()
                 let left = e.schedule?.lessonsOn(today, subgroup: e.subgroup).filter { $0.endAt.isAfter(now) }.count ?? 0
-                if left > 0 { Text("сегодня ещё \(left)").font(.system(size: 12, weight: .semibold)).foregroundStyle(c.accent) }
+                if left > 0 { Text("сегодня ещё \(left)").font(.roboto(12, .semibold)).foregroundStyle(c.accent) }
             }
             if let o = list.first {
                 let ongoing = !o.startAt.isAfter(now)
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    Text(o.lesson.start.description).font(.system(size: 28, weight: .heavy)).foregroundStyle(c.ink)
+                    Text(o.lesson.start.description).font(.roboto(28, .heavy)).foregroundStyle(c.ink)
                     Text(ongoing ? "идёт до \(o.lesson.end)" : o.date == today ? "сегодня" : whenText(o, now: now))
-                        .font(.system(size: 13, weight: .semibold)).foregroundStyle(c.muted)
+                        .font(.roboto(13, .semibold)).foregroundStyle(c.muted)
                 }
-                Text(o.lesson.fullTitle).font(.system(size: 16, weight: .bold)).foregroundStyle(c.ink).lineLimit(1)
+                Text(o.lesson.fullTitle).font(.roboto(16, .bold)).foregroundStyle(c.ink).lineLimit(1)
                 Text([o.lesson.type, o.lesson.rooms, o.lesson.teacher].filter { !$0.isBlank }.joined(separator: " · "))
-                    .font(.system(size: 13)).foregroundStyle(c.muted).lineLimit(1)
+                    .font(.roboto(13)).foregroundStyle(c.muted).lineLimit(1)
                 Spacer(minLength: 0)
                 if let after = list.dropFirst().first, after.date == o.date {
                     Text("Затем \(after.lesson.start) · \(after.lesson.subject) \(after.lesson.type)")
-                        .font(.system(size: 12, weight: .semibold)).foregroundStyle(c.ink).lineLimit(1)
+                        .font(.roboto(12, .semibold)).foregroundStyle(c.ink).lineLimit(1)
                         .padding(.horizontal, 10).padding(.vertical, 5)
                         .background(c.chip, in: Capsule())
                 }
             } else {
                 Spacer()
-                Text(emptyText(e)).font(.system(size: 15, weight: .semibold)).foregroundStyle(c.muted)
+                Text(emptyText(e)).font(.roboto(15, .semibold)).foregroundStyle(c.muted)
                 Spacer()
             }
         }
@@ -253,27 +253,27 @@ struct DayView: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text("\(label) · \(date.day) \(month(date))" + (e.schedule.map { " · \($0.weekNumber(date)) нед." } ?? ""))
-                    .font(.system(size: 13, weight: .bold)).foregroundStyle(c.ink)
+                    .font(.roboto(13, .bold)).foregroundStyle(c.ink)
                 Spacer()
-                if !list.isEmpty { Text(pairs(list.count)).font(.system(size: 12, weight: .semibold)).foregroundStyle(c.accent) }
+                if !list.isEmpty { Text(pairs(list.count)).font(.roboto(12, .semibold)).foregroundStyle(c.accent) }
             }
             if list.isEmpty {
                 Spacer()
-                Text(e.schedule == nil ? emptyText(e) : "На неделю вперёд пар нет").font(.system(size: 14)).foregroundStyle(c.muted)
+                Text(e.schedule == nil ? emptyText(e) : "На неделю вперёд пар нет").font(.roboto(14)).foregroundStyle(c.muted)
                 Spacer()
             } else {
                 ForEach(Array(list.prefix(max).enumerated()), id: \.offset) { _, o in
                     let ongoing = !o.startAt.isAfter(now) && o.endAt.isAfter(now)
                     HStack(spacing: 8) {
-                        Text(o.lesson.start.description).font(.system(size: 13, weight: .bold)).foregroundStyle(ongoing ? c.accent : c.ink)
+                        Text(o.lesson.start.description).font(.roboto(13, .bold)).foregroundStyle(ongoing ? c.accent : c.ink)
                             .frame(width: 44, alignment: .leading)
-                        Text("\(o.lesson.subject) \(o.lesson.type)").font(.system(size: 13, weight: ongoing ? .bold : .medium))
+                        Text("\(o.lesson.subject) \(o.lesson.type)").font(.roboto(13, weight: ongoing ? .bold : .medium))
                             .foregroundStyle(ongoing ? c.accent : c.ink).lineLimit(1)
                         Spacer(minLength: 4)
-                        Text(shortRoom(o.lesson.rooms)).font(.system(size: 12)).foregroundStyle(c.muted).lineLimit(1)
+                        Text(shortRoom(o.lesson.rooms)).font(.roboto(12)).foregroundStyle(c.muted).lineLimit(1)
                     }
                 }
-                if list.count > max { Text("и ещё \(list.count - max)").font(.system(size: 12)).foregroundStyle(c.muted) }
+                if list.count > max { Text("и ещё \(list.count - max)").font(.roboto(12)).foregroundStyle(c.muted) }
                 Spacer(minLength: 0)
             }
         }
@@ -306,13 +306,13 @@ struct DeadlinesWView: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Image(systemName: "flag.fill").foregroundStyle(c.accent)
-                Text("Дедлайны").font(.system(size: 13, weight: .bold)).foregroundStyle(c.ink)
+                Text("Дедлайны").font(.roboto(13, .bold)).foregroundStyle(c.ink)
                 Spacer()
-                if !open.isEmpty { Text("\(open.count)").font(.system(size: 13, weight: .bold)).foregroundStyle(c.accent) }
+                if !open.isEmpty { Text("\(open.count)").font(.roboto(13, .bold)).foregroundStyle(c.accent) }
             }
             if open.isEmpty {
                 Spacer()
-                Text(e.noShare ? "Откройте UniTime" : "Всё сдано 🎉").font(.system(size: 14, weight: .semibold)).foregroundStyle(c.muted)
+                Text(e.noShare ? "Откройте UniTime" : "Всё сдано 🎉").font(.roboto(14, .semibold)).foregroundStyle(c.muted)
                 Spacer()
             } else {
                 ForEach(open.prefix(max)) { d in
@@ -326,15 +326,15 @@ struct DeadlinesWView: View {
                     }()
                     if family == .systemSmall {
                         VStack(alignment: .leading, spacing: 0) {
-                            Text(d.title).font(.system(size: 13, weight: .semibold)).foregroundStyle(c.ink).lineLimit(1)
-                            Text(label).font(.system(size: 11)).foregroundStyle(d.due.isBefore(now) ? c.late : days <= 1 ? c.accent : c.muted)
+                            Text(d.title).font(.roboto(13, .semibold)).foregroundStyle(c.ink).lineLimit(1)
+                            Text(label).font(.roboto(11)).foregroundStyle(d.due.isBefore(now) ? c.late : days <= 1 ? c.accent : c.muted)
                         }
                     } else {
                         HStack {
-                            Text([d.subject, d.title].filter { !$0.isBlank }.joined(separator: " · ")).font(.system(size: 13, weight: .medium))
+                            Text([d.subject, d.title].filter { !$0.isBlank }.joined(separator: " · ")).font(.roboto(13, .medium))
                                 .foregroundStyle(c.ink).lineLimit(1)
                             Spacer()
-                            Text(label).font(.system(size: 12, weight: .semibold))
+                            Text(label).font(.roboto(12, .semibold))
                                 .foregroundStyle(d.due.isBefore(now) ? c.late : days <= 1 ? c.accent : c.muted)
                         }
                     }
@@ -373,17 +373,17 @@ struct ExamsWView: View {
             Spacer()
             if let start = s?.examsStart, today < start {
                 let n = today.days(to: start)
-                Text("\(n)").font(.system(size: 44, weight: .heavy)).foregroundStyle(c.ink)
-                Text("\(plural(n, "день", "дня", "дней")) до сессии").font(.system(size: 13, weight: .semibold)).foregroundStyle(c.muted)
-                Text("с \(start.day) \(month(start))").font(.system(size: 12)).foregroundStyle(c.muted)
+                Text("\(n)").font(.roboto(44, .heavy)).foregroundStyle(c.ink)
+                Text("\(plural(n, "день", "дня", "дней")) до сессии").font(.roboto(13, .semibold)).foregroundStyle(c.muted)
+                Text("с \(start.day) \(month(start))").font(.roboto(12)).foregroundStyle(c.muted)
             } else if let x = next {
                 let n = today.days(to: x.date)
-                Text(n == 0 ? "сегодня" : "\(n)").font(.system(size: n == 0 ? 28 : 44, weight: .heavy)).foregroundStyle(c.ink)
-                Text(n == 0 ? "экзамен в \(x.lesson.start)" : "\(plural(n, "день", "дня", "дней")) до экзамена").font(.system(size: 13, weight: .semibold)).foregroundStyle(c.muted)
-                Text(x.lesson.subject).font(.system(size: 12, weight: .semibold)).foregroundStyle(c.accent).lineLimit(1)
+                Text(n == 0 ? "сегодня" : "\(n)").font(.roboto(n == 0 ? 28 : 44, .heavy)).foregroundStyle(c.ink)
+                Text(n == 0 ? "экзамен в \(x.lesson.start)" : "\(plural(n, "день", "дня", "дней")) до экзамена").font(.roboto(13, .semibold)).foregroundStyle(c.muted)
+                Text(x.lesson.subject).font(.roboto(12, .semibold)).foregroundStyle(c.accent).lineLimit(1)
             } else {
-                Text("—").font(.system(size: 44, weight: .heavy)).foregroundStyle(c.ink)
-                Text(s == nil ? emptyText(e) : "сессия: даты пока нет").font(.system(size: 13)).foregroundStyle(c.muted)
+                Text("—").font(.roboto(44, .heavy)).foregroundStyle(c.ink)
+                Text(s == nil ? emptyText(e) : "сессия: даты пока нет").font(.roboto(13)).foregroundStyle(c.muted)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
@@ -404,13 +404,13 @@ struct PairLiveActivity: Widget {
             return DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     Label(s.room.isBlank ? "—" : shortRoom(s.room), systemImage: "mappin.and.ellipse")
-                        .font(.system(size: 14, weight: .semibold)).foregroundStyle(Color(hex: 0x8EA2FF))
+                        .font(.roboto(14, .semibold)).foregroundStyle(Color(hex: 0x8EA2FF))
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    Countdown(state: s).font(.system(size: 14, weight: .bold)).foregroundStyle(.white)
+                    Countdown(state: s).font(.roboto(14, .bold)).foregroundStyle(.white)
                 }
                 DynamicIslandExpandedRegion(.center) {
-                    Text(s.title).font(.system(size: 15, weight: .bold)).lineLimit(1)
+                    Text(s.title).font(.roboto(15, .bold)).lineLimit(1)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     VStack(alignment: .leading, spacing: 6) {
@@ -418,13 +418,13 @@ struct PairLiveActivity: Widget {
                             ProgressView(timerInterval: s.start...max(s.end, s.start), countsDown: false) { EmptyView() } currentValueLabel: { EmptyView() }
                                 .tint(Color(hex: 0x8EA2FF))
                         }
-                        Text(s.next.isBlank ? s.detail : s.next).font(.system(size: 12)).foregroundStyle(Color(hex: 0xC9CED8)).lineLimit(1)
+                        Text(s.next.isBlank ? s.detail : s.next).font(.roboto(12)).foregroundStyle(Color(hex: 0xC9CED8)).lineLimit(1)
                     }
                 }
             } compactLeading: {
-                Text(s.short).font(.system(size: 13, weight: .bold)).lineLimit(1).foregroundStyle(Color(hex: 0x8EA2FF))
+                Text(s.short).font(.roboto(13, .bold)).lineLimit(1).foregroundStyle(Color(hex: 0x8EA2FF))
             } compactTrailing: {
-                Countdown(state: s).font(.system(size: 13, weight: .semibold)).frame(maxWidth: 56)
+                Countdown(state: s).font(.roboto(13, .semibold)).frame(maxWidth: 56)
             } minimal: {
                 Image(systemName: s.isNow ? "graduationcap.fill" : "clock").foregroundStyle(Color(hex: 0x8EA2FF))
             }
@@ -454,29 +454,29 @@ private struct LockScreenPair: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Circle().fill(state.isNow ? Color(hex: 0x7CF0B0) : Color(hex: 0x8EA2FF)).frame(width: 8, height: 8)
-                Text(state.isNow ? "Идёт сейчас" : "Следующая пара").font(.system(size: 13, weight: .semibold)).foregroundStyle(Color(hex: 0xB9C4FF))
+                Text(state.isNow ? "Идёт сейчас" : "Следующая пара").font(.roboto(13, .semibold)).foregroundStyle(Color(hex: 0xB9C4FF))
                 Spacer()
                 if stale {
-                    Text("откройте UniTime").font(.system(size: 12)).foregroundStyle(Color(hex: 0xC9CED8))
+                    Text("откройте UniTime").font(.roboto(12)).foregroundStyle(Color(hex: 0xC9CED8))
                 } else {
                     HStack(spacing: 4) {
                         Text(state.isNow ? "ещё" : "через")
                         Countdown(state: state).frame(maxWidth: 70)
                     }
-                    .font(.system(size: 13, weight: .semibold)).foregroundStyle(Color(hex: 0xC9CED8))
+                    .font(.roboto(13, .semibold)).foregroundStyle(Color(hex: 0xC9CED8))
                 }
             }
-            Text(state.title).font(.system(size: 18, weight: .bold)).foregroundStyle(.white).lineLimit(2)
-            Text(state.detail).font(.system(size: 13)).foregroundStyle(Color(hex: 0xC9CED8)).lineLimit(1)
+            Text(state.title).font(.roboto(18, .bold)).foregroundStyle(.white).lineLimit(2)
+            Text(state.detail).font(.roboto(13)).foregroundStyle(Color(hex: 0xC9CED8)).lineLimit(1)
             if state.isNow {
                 ProgressView(timerInterval: state.start...max(state.end, state.start), countsDown: false) { EmptyView() } currentValueLabel: { EmptyView() }
                     .tint(Color(hex: 0x8EA2FF))
             } else {
                 let t = DateFormatter.localizedString(from: state.start, dateStyle: .none, timeStyle: .short)
-                Text("Начало в \(t)").font(.system(size: 12)).foregroundStyle(Color(hex: 0xC9CED8))
+                Text("Начало в \(t)").font(.roboto(12)).foregroundStyle(Color(hex: 0xC9CED8))
             }
             if !state.next.isBlank {
-                Text(state.next).font(.system(size: 12, weight: .semibold)).foregroundStyle(.white).lineLimit(1)
+                Text(state.next).font(.roboto(12, .semibold)).foregroundStyle(.white).lineLimit(1)
             }
         }
         .padding(16)

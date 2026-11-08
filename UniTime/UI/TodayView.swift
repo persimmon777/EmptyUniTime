@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// «Сегодня» — как TodayScreen в MainScreens.kt.
 struct TodayView: View {
     @EnvironmentObject private var model: AppModel
     @EnvironmentObject private var settings: AppSettings
@@ -19,30 +20,36 @@ struct TodayView: View {
         let soon = Array(model.deadlines.filter { !$0.done && $0.due.isBefore(now.plusDays(4)) }.prefix(3))
         let glass = C.style == .glass
 
-        Screen(spacing: 16) {
+        Screen(spacing: 16, top: 20, bottom: 20) {
             HStack(alignment: .top) {
                 ScreenTitle(dayTitle(today), "Сегодня")
+                Spacer()
                 HStack(spacing: 8) {
-                    RoundButton(symbol: "doc.text", label: "Сессия") { model.open(.exams) }
-                    RoundButton(symbol: "gearshape", label: "Настройки") { model.open(.settings) }
+                    RoundButton(glyph: .doc, label: "Сессия", glassy: glass) { model.open(.exams) }
+                    RoundButton(glyph: .gear, label: "Настройки", glassy: glass) { model.open(.settings) }
                 }
             }
+            .enter(0)
             HStack(spacing: 8) {
-                Pill(text: "\(s.weekNumber(day)) неделя", bg: glass ? C.glassFill(strong: true) : C.soft, fg: glass ? C.ink : C.softInk)
-                Pill(text: sub == 0 ? group : "\(group) · п/г \(sub)", bg: glass ? C.glassFill() : C.card, fg: C.ink, border: !glass) {
-                    model.open(.settings)
+                if glass {
+                    Pill(text: "\(s.weekNumber(day)) неделя", bg: C.glassFill(strong: true), fg: C.ink)
+                    Pill(text: sub == 0 ? group : "\(group) · п/г \(sub)", bg: C.glassFill(), fg: C.ink) { model.open(.settings) }
+                } else {
+                    Pill(text: "\(s.weekNumber(day)) неделя", bg: C.soft, fg: C.softInk)
+                    Pill(text: sub == 0 ? group : "\(group) · п/г \(sub)", bg: C.card, fg: C.ink, border: true) { model.open(.settings) }
                 }
             }
+            .enter(1)
             HStack(spacing: 6) {
                 ForEach(0..<6, id: \.self) { i in
                     let d = monday.plusDays(i)
                     let on = d == day
-                    Button { withAnimation(.snappy) { selected = d } } label: {
+                    Button { withAnimation(.easeInOut(duration: 0.25)) { selected = d } } label: {
                         VStack(spacing: 2) {
-                            Text(dayName(d, full: false)).font(.system(size: 12, weight: .medium))
-                                .foregroundStyle(on ? C.ground.opacity(0.75) : C.muted)
-                            Text("\(d.day)").font(.system(size: 17, weight: .bold)).foregroundStyle(on ? C.ground : C.ink)
+                            Text(dayName(d, full: false)).ct(12, .medium).foregroundStyle(on ? C.ground.opacity(0.75) : C.muted)
+                            Text("\(d.day)").ct(17, .bold).foregroundStyle(on ? C.ground : C.ink)
                         }
+                        .padding(.vertical, 8)
                         .frame(maxWidth: .infinity, minHeight: 56)
                         .background(on ? C.ink : (glass ? C.glassFill() : C.card), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                         .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -51,35 +58,49 @@ struct TodayView: View {
                     .buttonStyle(Bounce())
                 }
             }
+            .enter(2)
             if day == today, let hero = cur ?? next {
-                HeroCard(o: hero, isNow: cur != nil, now: now) { model.open(.lesson(hero, own: true)) }
+                HeroCard(o: hero, isNow: cur != nil, now: now) { model.open(.lesson(hero, own: true)) }.enter(3)
             }
-            if !soon.isEmpty { SoonDeadlines(list: soon, now: now) { model.tab = .deadlines } }
+            if !soon.isEmpty { SoonDeadlines(list: soon, now: now) { model.tab = .deadlines }.enter(4) }
             HStack(alignment: .bottom) {
-                Text(day == today ? "Пары на сегодня" : dayTitle(day)).font(.system(size: 17, weight: .bold)).foregroundStyle(C.ink)
+                Text(day == today ? "Пары на сегодня" : dayTitle(day)).ct(17, .bold).foregroundStyle(C.ink)
                 Spacer()
                 if let last = lessons.map({ $0.lesson.end }).max() {
-                    Text("\(pairs(lessons.count)) · до \(last)").font(.system(size: 13)).foregroundStyle(C.muted)
+                    Text("\(pairs(lessons.count)) · до \(last)").ct(13).foregroundStyle(C.muted)
                 }
             }
+            .enter(4)
             if lessons.isEmpty {
-                EmptyCard(title: "Пар нет", text: "Можно выдохнуть. Дальше — на вкладке «Пары».")
+                EmptyCard(title: "Пар нет", text: "Можно выдохнуть. Дальше — на вкладке «Пары».").enter(5)
             } else {
-                VStack(spacing: 6) {
-                    ForEach(Array(lessons.enumerated()), id: \.offset) { i, o in
-                        Between(gap: gapBefore(lessons, i))
-                        let dl = model.deadlines.filter { !$0.done && $0.subject == o.lesson.subject && !$0.due.isBefore(now) }.count
-                        LessonRow(o: o, faded: o.endAt.isBefore(now), highlighted: cur == o, showGroups: false,
-                                  extra: dl > 0 ? "Дедлайнов по предмету: \(dl)" : nil) {
-                            model.open(.lesson(o, own: true))
-                        }
-                    }
-                }
-                .id(day)
-                .transition(.opacity.combined(with: .move(edge: .bottom)))
+                // Смена дня: пары выезжают заново, по очереди.
+                DayLessons(lessons: lessons, now: now, current: cur)
+                    .id(day)
+                    .environment(\.enterClock, Date())
             }
         }
-        .refreshable { model.load(force: true) }
+    }
+}
+
+private struct DayLessons: View {
+    @EnvironmentObject private var model: AppModel
+    let lessons: [Occurrence]
+    let now: LocalDateTime
+    let current: Occurrence?
+
+    var body: some View {
+        VStack(spacing: 6) {
+            ForEach(Array(lessons.enumerated()), id: \.offset) { i, o in
+                Between(gap: gapBefore(lessons, i)).enter(5 + i)
+                let dl = model.deadlines.filter { !$0.done && $0.subject == o.lesson.subject && !$0.due.isBefore(now) }.count
+                LessonRow(o: o, faded: o.endAt.isBefore(now), highlighted: current == o, showGroups: false,
+                          extra: dl > 0 ? "Дедлайнов по предмету: \(dl)" : nil) {
+                    model.open(.lesson(o, own: true))
+                }
+                .enter(5 + i)
+            }
+        }
     }
 }
 
@@ -90,6 +111,7 @@ private struct SoonDeadlines: View {
     let action: () -> Void
 
     var body: some View {
+        // В «Цвете пар» карточка дедлайнов в обратных цветах, чтобы не потеряться среди цветных пар.
         let colored = C.style == .color
         let ink = colored ? C.ground : C.ink
         let muted = colored ? C.ground.opacity(0.65) : C.muted
@@ -99,15 +121,14 @@ private struct SoonDeadlines: View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 8) {
-                    Image(systemName: "flag.fill").font(.system(size: 15)).foregroundStyle(flag)
-                    Text("Скоро дедлайны").font(.system(size: 14, weight: .bold)).foregroundStyle(ink)
+                    Glyph(.flag, flag, 18)
+                    Text("Скоро дедлайны").ct(14, .bold).foregroundStyle(ink)
                 }
                 ForEach(list) { d in
                     HStack {
-                        Text(d.title).font(.system(size: 14)).foregroundStyle(ink).lineLimit(1)
+                        Text(d.title).ct(14).foregroundStyle(ink).lineLimit(1)
                         Spacer()
-                        Text(deadlineLabel(d, now: now)).font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(d.due.isBefore(now) ? late : muted)
+                        Text(deadlineLabel(d, now: now)).ct(13, .semibold).foregroundStyle(d.due.isBefore(now) ? late : muted)
                     }
                 }
             }
@@ -121,7 +142,7 @@ private struct SoonDeadlines: View {
     }
 }
 
-/// Главная карточка: идущая сейчас или следующая пара.
+/// Главная карточка: идущая сейчас или следующая пара (HeroCard).
 struct HeroCard: View {
     @Environment(\.look) private var C
     let o: Occurrence
@@ -148,22 +169,22 @@ struct HeroCard: View {
                 HStack {
                     HStack(spacing: 6) {
                         if isNow { LiveDot(color: colors.live) } else { Circle().fill(colors.bar).frame(width: 8, height: 8) }
-                        Text(isNow ? "Идёт сейчас" : "Следующая пара").font(.system(size: 13, weight: .semibold)).foregroundStyle(colors.label)
+                        Text(isNow ? "Идёт сейчас" : "Следующая пара").ct(13, .semibold).foregroundStyle(colors.label)
                     }
                     Spacer()
                     Text(isNow ? "ещё \(minutesText(now.minutes(to: o.endAt) + 1))" : untilText(o, now: now))
-                        .font(.system(size: 13, weight: .semibold)).foregroundStyle(colors.muted)
+                        .ct(13, .semibold).foregroundStyle(colors.muted).lineLimit(1)
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     Text(l.fullTitle)
-                        .font(.system(size: C.style == .classic ? 22 : 23, weight: tone != nil ? .heavy : .bold))
+                        .ct(C.style == .classic ? 22 : 23, tone != nil ? .heavy : .bold, lh: 26)
                         .foregroundStyle(colors.ink)
                         .multilineTextAlignment(.leading)
                         .padding(.trailing, tone != nil ? 40 : 0)
                     Text([typeName, l.rooms, l.teacher].filter { !$0.isBlank }.joined(separator: " · "))
-                        .font(.system(size: 14)).foregroundStyle(colors.muted).multilineTextAlignment(.leading)
+                        .ct(14).foregroundStyle(colors.muted).multilineTextAlignment(.leading)
                     if !l.note.isBlank {
-                        Text(l.note).font(.system(size: 14, weight: .semibold)).foregroundStyle(colors.muted).lineLimit(3)
+                        Text(l.note).ct(14, .semibold).foregroundStyle(colors.muted).lineLimit(3)
                     }
                 }
                 VStack(spacing: 6) {
@@ -173,7 +194,7 @@ struct HeroCard: View {
                         Spacer()
                         Text(l.end.description)
                     }
-                    .font(.system(size: 12)).foregroundStyle(colors.muted)
+                    .ct(12).foregroundStyle(colors.muted)
                 }
             }
             .padding(C.style == .classic ? 18 : 20)
@@ -181,10 +202,9 @@ struct HeroCard: View {
             .background {
                 ZStack {
                     if let tone = tone {
-                        shape.fill(LinearGradient(colors: [tone.strong.opacity(0.84), tone.strong], startPoint: .topLeading, endPoint: .bottomTrailing))
-                            .background(shape.fill(.white))
+                        LinearGradient(colors: [mix(tone.strong, .white, 0.16), tone.strong], startPoint: .topLeading, endPoint: .bottomTrailing)
                         // Крупная полупрозрачная метка типа в углу карточки.
-                        Text(l.type).font(.system(size: 110, weight: .black)).tracking(-6)
+                        Text(l.type).font(.roboto(110, .black)).tracking(-6)
                             .foregroundStyle(.white.opacity(0.16)).lineLimit(1).fixedSize()
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                             .offset(x: 8, y: 30)
@@ -198,7 +218,7 @@ struct HeroCard: View {
                                 .position(x: g.size.width * 0.92, y: 0)
                         }
                     } else {
-                        shape.fill(C.hero)
+                        C.hero
                     }
                 }
                 .clipShape(shape)
@@ -208,17 +228,12 @@ struct HeroCard: View {
     }
 }
 
-/// Пульсирующая точка «идёт сейчас».
-struct LiveDot: View {
-    let color: Color
-    @State private var pulse = false
-
-    var body: some View {
-        ZStack {
-            Circle().fill(color.opacity(0.35)).frame(width: 18, height: 18).scaleEffect(pulse ? 1 : 0.4).opacity(pulse ? 0 : 1)
-            Circle().fill(color).frame(width: 8, height: 8)
-        }
-        .frame(width: 8, height: 8)
-        .onAppear { withAnimation(.easeOut(duration: 1.4).repeatForever(autoreverses: false)) { pulse = true } }
-    }
+/// lerp цветов, как в Compose.
+func mix(_ a: Color, _ b: Color, _ t: Double) -> Color {
+    let x = UIColor(a), y = UIColor(b)
+    var (r1, g1, b1, a1, r2, g2, b2, a2): (CGFloat, CGFloat, CGFloat, CGFloat, CGFloat, CGFloat, CGFloat, CGFloat) = (0, 0, 0, 0, 0, 0, 0, 0)
+    x.getRed(&r1, green: &g1, blue: &b1, alpha: &a1)
+    y.getRed(&r2, green: &g2, blue: &b2, alpha: &a2)
+    let f = CGFloat(t)
+    return Color(.sRGB, red: Double(r1 + (r2 - r1) * f), green: Double(g1 + (g2 - g1) * f), blue: Double(b1 + (b2 - b1) * f), opacity: Double(a1 + (a2 - a1) * f))
 }

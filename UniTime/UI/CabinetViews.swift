@@ -42,7 +42,7 @@ struct StatusChip: View {
                 && !t.contains("не подтверждён")
             let bad = ["отклон", "взыск", "выгов", "замеч", "просроч", "отказ", "не подтверждён"].contains { t.contains($0) }
             let st = C.typeStyle(bad ? "Экз" : good ? "ЛК" : "ПЗ")
-            Text(text).font(.system(size: 12, weight: .bold)).foregroundStyle(st.fg)
+            Text(text).ct(12, .bold).foregroundStyle(st.fg)
                 .padding(.horizontal, 8).padding(.vertical, 4)
                 .background(st.bg, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .fixedSize()
@@ -61,18 +61,18 @@ struct RecordCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .top, spacing: 10) {
-                Text(title.ifBlank("Запись")).font(.system(size: 15, weight: .bold)).foregroundStyle(C.ink)
+                Text(title.ifBlank("Запись")).ct(15, .bold).foregroundStyle(C.ink)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 StatusChip(text: chip)
             }
-            if !meta.isBlank { Text(meta).font(.system(size: 13)).foregroundStyle(C.muted) }
+            if !meta.isBlank { Text(meta).ct(13).foregroundStyle(C.muted) }
             ForEach(Array(lines.filter { !$0.1.isBlank }.enumerated()), id: \.offset) { _, kv in
                 if kv.0.isBlank {
-                    Text(kv.1).font(.system(size: 14)).foregroundStyle(C.ink)
+                    Text(kv.1).ct(14).foregroundStyle(C.ink)
                 } else {
                     HStack(alignment: .top, spacing: 8) {
-                        Text(kv.0).font(.system(size: 13)).foregroundStyle(C.muted).frame(maxWidth: .infinity, alignment: .leading)
-                        Text(kv.1).font(.system(size: 13, weight: .medium)).foregroundStyle(C.ink).frame(maxWidth: .infinity, alignment: .leading)
+                        Text(kv.0).ct(13).foregroundStyle(C.muted).frame(maxWidth: .infinity, alignment: .leading)
+                        Text(kv.1).ct(13, .medium).foregroundStyle(C.ink).frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
             }
@@ -86,14 +86,17 @@ struct BigNumber: View {
     let value: String
     let label: String
     var sub: String? = nil
+    var size: CGFloat = 44
+    var labelBottom: CGFloat = 5
 
     var body: some View {
-        HStack(alignment: .lastTextBaseline, spacing: 10) {
-            Text(value).font(.system(size: 44, weight: .heavy)).foregroundStyle(.white).contentTransition(.numericText())
-            VStack(alignment: .leading, spacing: 2) {
-                Text(label).font(.system(size: 15, weight: .semibold)).foregroundStyle(C.heroMuted)
-                if let sub = sub { Text(sub).font(.system(size: 12)).foregroundStyle(C.heroMuted) }
+        HStack(alignment: .bottom, spacing: 10) {
+            CountUpText(value: value, color: .white, size: size).ct(size, .heavy, lh: size)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(label).ct(15, .semibold).foregroundStyle(C.heroMuted)
+                if let sub = sub { Text(sub).ct(12).foregroundStyle(C.heroMuted) }
             }
+            .padding(.bottom, labelBottom)
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -150,15 +153,15 @@ struct ProfileCard: View {
                 HStack(spacing: 16) {
                     Group {
                         if let p = photo { Image(uiImage: p).resizable().scaledToFill() }
-                        else { Text(initials).font(.system(size: 24, weight: .bold)).foregroundStyle(.white).frame(maxWidth: .infinity, maxHeight: .infinity).background(C.heroTrack) }
+                        else { Text(initials).ct(24, .bold).foregroundStyle(.white).frame(maxWidth: .infinity, maxHeight: .infinity).background(C.heroTrack) }
                     }
                     .frame(width: 72, height: 72)
                     .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(fio).font(.system(size: 20, weight: .bold)).foregroundStyle(.white)
+                        Text(fio).ct(20, .bold).foregroundStyle(.white)
                         Text([o.str("group").isBlank ? "" : "Группа \(o.str("group"))", o.str("accountType") == "STUDENT" ? "студент" : ""]
                             .filter { !$0.isBlank }.joined(separator: " · "))
-                            .font(.system(size: 14)).foregroundStyle(C.heroMuted)
+                            .ct(14).foregroundStyle(C.heroMuted)
                     }
                 }
                 if o.bool("isGroupHead") { Pill(text: "Староста", bg: C.heroTrack, fg: .white) }
@@ -174,7 +177,7 @@ struct ProfileCard: View {
             }
             .card(18)
             if o.bool("hasNotConfirmedContact") {
-                Text("На сайте есть неподтверждённый контакт — подтверди его на iis.bsuir.by.").font(.system(size: 13)).foregroundStyle(C.error)
+                Text("На сайте есть неподтверждённый контакт — подтверди его на iis.bsuir.by.").ct(13).foregroundStyle(C.error)
             }
         }
         .task {
@@ -191,8 +194,8 @@ private struct InfoLine: View {
     var body: some View {
         if !value.isBlank {
             VStack(alignment: .leading, spacing: 2) {
-                Text(label).font(.system(size: 12)).foregroundStyle(C.muted)
-                Text(value).font(.system(size: 15, weight: .medium)).foregroundStyle(C.ink).textSelection(.enabled)
+                Text(label).ct(12).foregroundStyle(C.muted)
+                Text(value).ct(15, .medium).foregroundStyle(C.ink).textSelection(.enabled)
             }
         }
     }
@@ -215,7 +218,7 @@ struct MarkbookView: View {
         let current = sel ?? lastWithMarks
         VStack(alignment: .leading, spacing: 12) {
             BigNumber(value: o.str("averageMark").ifBlank("—"), label: "средний балл",
-                      sub: o.str("number").isBlank ? nil : "зачётка № \(o.str("number"))")
+                      sub: o.str("number").isBlank ? nil : "зачётка № \(o.str("number"))", size: 48, labelBottom: 6)
             if sems.isEmpty {
                 EmptyCard(title: "Зачётка пустая", text: "Оценок пока нет.")
             } else {
@@ -230,7 +233,7 @@ struct MarkbookView: View {
                         InfoTile(label: "Сдано", value: "\(withMark) из \(items.count)")
                     }
                     if withMark == 0 && !items.isEmpty {
-                        Text("Семестр ещё не закрыт — вот что предстоит сдавать.").font(.system(size: 13)).foregroundStyle(C.muted)
+                        Text("Семестр ещё не закрыт — вот что предстоит сдавать.").ct(13).foregroundStyle(C.muted)
                     }
                     let order = ["Экзамен", "Дифф. зачет", "Зачет"]
                     let sorted = items.enumerated().sorted { a, b in
@@ -259,28 +262,28 @@ private struct SubjectMark: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(m.str("fullSubject", "subject")).font(.system(size: 16, weight: .bold)).foregroundStyle(C.ink)
+                    Text(m.str("fullSubject", "subject")).ct(16, .bold).foregroundStyle(C.ink)
                     if !form.isBlank {
-                        Text(form).font(.system(size: 12, weight: .bold)).foregroundStyle(st.fg)
+                        Text(form).ct(12, .bold).foregroundStyle(st.fg)
                             .padding(.horizontal, 8).padding(.vertical, 4)
                             .background(st.bg, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 Text(mark.isBlank ? "—" : (mark.lowercased() == "зачтено" || mark == "+") ? "✓" : mark)
-                    .font(.system(size: 22, weight: .heavy)).foregroundStyle(mark.isBlank ? C.muted : C.softInk)
+                    .ct(22, .heavy).foregroundStyle(mark.isBlank ? C.muted : C.softInk)
                     .frame(width: 52, height: 52)
                     .background(mark.isBlank ? C.ground : C.soft, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
             let meta = [prettyValue(m.str("date")), m.str("teacher")].filter { !$0.isBlank }
-            if !meta.isEmpty { Text(meta.joined(separator: " · ")).font(.system(size: 13)).foregroundStyle(C.muted) }
+            if !meta.isEmpty { Text(meta.joined(separator: " · ")).ct(13).foregroundStyle(C.muted) }
             HStack(spacing: 6) {
                 if let c = common, c > 0 { Stat(label: "Средний по потоку", value: fmt1(c)) }
                 if let r = retakes { Stat(label: "Пересдают", value: "\(fmt1(r))%") }
                 if mine > 0 { Stat(label: "Твои пересдачи", value: "\(mine)") }
             }
             let extra = [num(m.str("hours")).map { "\(fmt1($0)) ч" }, num(m.str("credits")).map { "\(fmt1($0)) з.е." }].compactMap { $0 }
-            if !extra.isEmpty { Text(extra.joined(separator: " · ")).font(.system(size: 12)).foregroundStyle(C.muted) }
+            if !extra.isEmpty { Text(extra.joined(separator: " · ")).ct(12).foregroundStyle(C.muted) }
         }
         .card(18, padding: 14)
     }
@@ -292,8 +295,8 @@ private struct Stat: View {
     let value: String
     var body: some View {
         VStack(alignment: .leading, spacing: 1) {
-            Text(value).font(.system(size: 14, weight: .bold)).foregroundStyle(C.ink)
-            Text(label).font(.system(size: 11)).foregroundStyle(C.muted)
+            Text(value).ct(14, .bold).foregroundStyle(C.ink)
+            Text(label).ct(11).foregroundStyle(C.muted)
         }
         .padding(.horizontal, 10).padding(.vertical, 6)
         .background(C.ground, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -349,25 +352,25 @@ struct PerformanceView: View {
                     let dl = listIn(s["deadlines"])
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(alignment: .top, spacing: 12) {
-                            Text(s.str("name", "discipline", "subject", "abbrev")).font(.system(size: 15, weight: .bold)).foregroundStyle(C.ink)
+                            Text(s.str("name", "discipline", "subject", "abbrev")).ct(15, .bold).foregroundStyle(C.ink)
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                            Text(avg.map { fmt1($0) } ?? "—").font(.system(size: 17, weight: .heavy)).foregroundStyle(avg == nil ? C.muted : C.softInk)
+                            Text(avg.map { fmt1($0) } ?? "—").ct(17, .heavy).foregroundStyle(avg == nil ? C.muted : C.softInk)
                                 .frame(width: 48, height: 48)
                                 .background(avg == nil ? C.ground : C.soft, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                         }
                         if marks.isEmpty {
-                            Text("Отметок пока нет").font(.system(size: 13)).foregroundStyle(C.muted)
+                            Text("Отметок пока нет").ct(13).foregroundStyle(C.muted)
                         } else {
                             FlowLayout(spacing: 6) {
                                 ForEach(marks.indices, id: \.self) { j in
-                                    Text(marks[j].0).font(.system(size: 13, weight: .bold)).foregroundStyle(C.ink)
+                                    Text(marks[j].0).ct(13, .bold).foregroundStyle(C.ink)
                                         .padding(.horizontal, 9).padding(.vertical, 5)
                                         .background(C.ground, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                                 }
                             }
                         }
                         let info = [absent > 0 ? "Пропуски: \(fmt1(absent)) ч" : nil, dl.isEmpty ? nil : "Дедлайнов: \(dl.count)"].compactMap { $0 }
-                        if !info.isEmpty { Text(info.joined(separator: " · ")).font(.system(size: 12)).foregroundStyle(C.muted) }
+                        if !info.isEmpty { Text(info.joined(separator: " · ")).ct(12).foregroundStyle(C.muted) }
                     }
                     .card(18, padding: 14)
                 }
@@ -403,22 +406,22 @@ struct OmissionsView: View {
             BigNumber(value: "\(fmt1(total)) ч", label: "всего пропущено", sub: "по неуважительной причине")
             SectionTitle(text: "По неуважительной причине", right: bad.isEmpty ? nil : "\(bad.count) записей")
             if bad.isEmpty {
-                Text("Нет — так держать.").font(.system(size: 14)).foregroundStyle(C.muted)
+                Text("Нет — так держать.").ct(14).foregroundStyle(C.muted)
             } else {
                 SemesterTabs(items: bad) { list in
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("За семестр: \(fmt1(list.reduce(0) { $0 + hoursOf($1) })) ч").font(.system(size: 13, weight: .semibold)).foregroundStyle(C.accent)
+                        Text("За семестр: \(fmt1(list.reduce(0) { $0 + hoursOf($1) })) ч").ct(13, .semibold).foregroundStyle(C.accent)
                         let sorted = byDateDesc(list, "date", "dateFrom")
                         ForEach(sorted.indices, id: \.self) { i in
                             let o = sorted[i]
                             HStack(spacing: 12) {
                                 VStack(alignment: .leading, spacing: 3) {
-                                    Text(o.str("subject", "discipline", "subjectName").ifBlank("Занятие")).font(.system(size: 15, weight: .semibold)).foregroundStyle(C.ink)
-                                    Text([period(o), o.str("note")].filter { !$0.isBlank }.joined(separator: " · ")).font(.system(size: 13)).foregroundStyle(C.muted)
+                                    Text(o.str("subject", "discipline", "subjectName").ifBlank("Занятие")).ct(15, .semibold).foregroundStyle(C.ink)
+                                    Text([period(o), o.str("note")].filter { !$0.isBlank }.joined(separator: " · ")).ct(13).foregroundStyle(C.muted)
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 TypeChip(type: o.str("lessonTypeAbbrev"))
-                                Text("\(fmt1(hoursOf(o))) ч").font(.system(size: 15, weight: .bold)).foregroundStyle(C.ink)
+                                Text("\(fmt1(hoursOf(o))) ч").ct(15, .bold).foregroundStyle(C.ink)
                             }
                             .card(16, padding: 14)
                         }
@@ -427,7 +430,7 @@ struct OmissionsView: View {
             }
             SectionTitle(text: "По уважительной причине", right: docs.isEmpty ? nil : "\(docs.count) документов")
             if docs.isEmpty {
-                Text("Справок нет.").font(.system(size: 14)).foregroundStyle(C.muted)
+                Text("Справок нет.").ct(14).foregroundStyle(C.muted)
             } else {
                 SemesterTabs(items: docs) { list in
                     let sorted = byDateDesc(list, "dateFrom", "date")
@@ -483,7 +486,7 @@ struct DormitoryView: View {
         VStack(alignment: .leading, spacing: 10) {
             SectionTitle(text: "Поощрения и взыскания", right: pp.isEmpty ? nil : "\(pp.count)")
             if pp.isEmpty {
-                Text("Нет записей.").font(.system(size: 14)).foregroundStyle(C.muted)
+                Text("Нет записей.").ct(14).foregroundStyle(C.muted)
             } else {
                 SemesterTabs(items: pp) { items in
                     let sorted = byDateDesc(items, "date")
@@ -500,13 +503,13 @@ struct DormitoryView: View {
                 }
             }
             SectionTitle(text: "Льготы", right: pr.isEmpty ? nil : "\(pr.count)")
-            if pr.isEmpty { Text("Льгот нет.").font(.system(size: 14)).foregroundStyle(C.muted) }
+            if pr.isEmpty { Text("Льгот нет.").ct(14).foregroundStyle(C.muted) }
             ForEach(pr.indices, id: \.self) { i in
                 let y = pr[i].str("year")
                 RecordCard(title: pr[i].str("dormitoryPrivilegeCategoryName", "name"), meta: y.isBlank ? "" : "\(y) год")
             }
             SectionTitle(text: "Заявки на общежитие", right: ap.isEmpty ? nil : "\(ap.count)")
-            if ap.isEmpty { Text("Заявок нет.").font(.system(size: 14)).foregroundStyle(C.muted) }
+            if ap.isEmpty { Text("Заявок нет.").ct(14).foregroundStyle(C.muted) }
             ForEach(ap.indices, id: \.self) { i in
                 let o = ap[i]
                 RecordCard(title: o.str("dormitory", "dormitoryName", "name").ifBlank("Заявка"), chip: o.str("status"),
@@ -537,8 +540,8 @@ struct GroupView: View {
                         ForEach(list.indices, id: \.self) { i in
                             if i > 0 { Divider1() }
                             HStack {
-                                Text("\(i + 1)").font(.system(size: 13)).foregroundStyle(C.muted).frame(width: 28, alignment: .leading)
-                                Text(list[i].str("fio", "name")).font(.system(size: 15)).foregroundStyle(C.ink).lineLimit(1)
+                                Text("\(i + 1)").ct(13).foregroundStyle(C.muted).frame(width: 28, alignment: .leading)
+                                Text(list[i].str("fio", "name")).ct(15).foregroundStyle(C.ink).lineLimit(1)
                                 Spacer()
                                 if !head.isBlank && list[i].str("fio") == head { StatusChip(text: "Староста") }
                             }
@@ -579,7 +582,7 @@ struct NotificationsView: View {
     var body: some View {
         let list = listIn(v, "notifications")
         if list.isEmpty {
-            EmptyCard(title: "Уведомлений нет", text: "Здесь будут сообщения из IIS.", symbol: "bell")
+            EmptyCard(title: "Уведомлений нет", text: "Здесь будут сообщения из IIS.", glyph: .bell)
         } else {
             VStack(spacing: 8) {
                 ForEach(list.indices, id: \.self) { i in
@@ -616,13 +619,13 @@ struct AccountSettingsView: View {
                 ("Блокировка до", prettyValue(attempts?.str("passwordBanExpiredTime") ?? "")),
             ])
             SectionTitle(text: "Контакты")
-            if list.isEmpty { Text("Контактов нет.").font(.system(size: 14)).foregroundStyle(C.muted) }
+            if list.isEmpty { Text("Контактов нет.").ct(14).foregroundStyle(C.muted) }
             ForEach(list.indices, id: \.self) { i in
                 let c = list[i]
                 RecordCard(title: c.str("contactValue", "value"), chip: c.bool("confirmed") ? "Подтверждён" : "Не подтверждён",
                            meta: c.str("contactType", "type", "contactTypeName"))
             }
-            Text("Сменить пароль и контакты можно на iis.bsuir.by → Настройки.").font(.system(size: 12)).foregroundStyle(C.muted)
+            Text("Сменить пароль и контакты можно на iis.bsuir.by → Настройки.").ct(12).foregroundStyle(C.muted)
         }
     }
 }
@@ -667,7 +670,7 @@ struct JsonView: View {
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(a.indices, id: \.self) { i in
                     if let p = primitiveText(a[i]) {
-                        Text("• \(p)").font(.system(size: 14)).foregroundStyle(C.ink)
+                        Text("• \(p)").ct(14).foregroundStyle(C.ink)
                     } else if depth < 6 {
                         JsonView(v: a[i], depth: depth + 1)
                             .padding(12)
@@ -683,17 +686,17 @@ struct JsonView: View {
                     let (k, child) = shown[i]
                     if let p = primitiveText(child) {
                         HStack(alignment: .top, spacing: 8) {
-                            Text(LABELS[k] ?? k).font(.system(size: 13)).foregroundStyle(C.muted).frame(maxWidth: .infinity, alignment: .leading)
-                            Text(p).font(.system(size: 14, weight: .medium)).foregroundStyle(C.ink).frame(maxWidth: .infinity, alignment: .leading)
+                            Text(LABELS[k] ?? k).ct(13).foregroundStyle(C.muted).frame(maxWidth: .infinity, alignment: .leading)
+                            Text(p).ct(14, .medium).foregroundStyle(C.ink).frame(maxWidth: .infinity, alignment: .leading)
                         }
                     } else if (child.items?.isEmpty == false || child.fields?.isEmpty == false) && depth < 6 {
-                        Text(LABELS[k] ?? k).font(.system(size: 13, weight: .bold)).foregroundStyle(C.ink).padding(.top, 6)
+                        Text(LABELS[k] ?? k).ct(13, .bold).foregroundStyle(C.ink).padding(.top, 6)
                         JsonView(v: child, depth: depth + 1)
                     }
                 }
             }
         } else if let p = primitiveText(v) {
-            Text(p).font(.system(size: 14)).foregroundStyle(C.ink)
+            Text(p).ct(14).foregroundStyle(C.ink)
         }
     }
 }
