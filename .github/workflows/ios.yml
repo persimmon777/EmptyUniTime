@@ -121,6 +121,14 @@ jobs:
           shot 8-feed-neon $G -startTab 1 -theme 4
           xcrun simctl spawn "$DEV" log show --last 3m --predicate 'process == "UniTime" AND messageType == fault' --style compact | tail -40 || true
           ls shots
+      - name: Скриншоты в лог
+        run: |
+          mkdir -p small
+          for f in shots/*.png; do
+            n=$(basename "$f" .png)
+            sips -Z 640 -s format jpeg -s formatOptions 45 "$f" --out "small/$n.jpg" >/dev/null
+            echo "SHOT $n $(base64 -i small/$n.jpg | tr -d '\n')"
+          done
       - uses: actions/upload-artifact@v4
         if: always()
         with:
