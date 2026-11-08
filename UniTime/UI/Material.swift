@@ -60,7 +60,7 @@ struct MaterialDialog<Content: View>: View {
         ZStack {
             Color.black.opacity(0.45).ignoresSafeArea().onTapGesture(perform: onDismiss)
             VStack(alignment: .leading, spacing: 16) {
-                Text(title).font(.roboto(24)).foregroundStyle(C.ink)
+                Text(title).font(.roboto(24, .bold)).foregroundStyle(C.ink)
                 ScrollView { content().frame(maxWidth: .infinity, alignment: .leading) }
                     .scrollBounceBehavior(.basedOnSize)
                     .fixedSize(horizontal: false, vertical: true)
