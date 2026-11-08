@@ -45,11 +45,13 @@ open UniTime.xcodeproj
 - `Widgets/` — расширение WidgetKit: виджеты и Live Activity.
 - `Tests/` — тесты логики расписания, запускаются без Xcode: `swiftc Shared/{Time,JSON,Schedule,Format,Stats,Store}.swift Tests/main.swift -o t && ./t`.
 
-GitHub Actions (`.github/workflows/ios.yml`) на каждом пуше прогоняет тесты, собирает неподписанный `UniTime.ipa` и прикладывает его как артефакт. Тег `v*` дополнительно создаёт релиз:
+GitHub Actions (`.github/workflows/ios.yml`) на каждом пуше прогоняет тесты, собирает неподписанный `UniTime.ipa` и прикладывает его как артефакт. Релиз с IPA создаётся любым из способов:
 
-```bash
-git tag v1.1 && git push origin v1.1
-```
+- пуш тега `v*`: `git tag v1.1 && git push origin v1.1`;
+- коммит, в сообщении которого есть `[release v1.1]`;
+- ручной запуск workflow **iOS** во вкладке Actions с заполненным полем `release`.
+
+Текст релиза берётся из `.github/release-notes.md`.
 
 ## Приватность
 

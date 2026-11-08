@@ -5,6 +5,11 @@ on:
     branches: ["**"]
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      release:
+        description: "Выпустить релиз с этим тегом, например v1.1 (пусто — просто сборка)"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -18,6 +23,21 @@ jobs:
 
       - name: Xcode
         run: xcodebuild -version
+
+      # Релиз: тег v*, ручной запуск с полем release или коммит с «[release vX.Y]» в сообщении.
+      - name: Версия
+        id: rel
+        env:
+          INPUT_RELEASE: ${{ github.event.inputs.release }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+        run: |
+          REL=""
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then REL="$GITHUB_REF_NAME"
+          elif [[ -n "$INPUT_RELEASE" ]]; then REL="$INPUT_RELEASE"
+          elif [[ "$COMMIT_MSG" =~ \[release\ (v[0-9][0-9.]*)\] ]]; then REL="${BASH_REMATCH[1]}"
+          fi
+          echo "tag=$REL" >> "$GITHUB_OUTPUT"
+          echo "Релиз: ${REL:-нет}"
 
       - name: Тесты логики расписания
         run: |
@@ -35,8 +55,9 @@ jobs:
         if: hashFiles('project.yml') != ''
         run: |
           VERSION_ARGS=""
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            VERSION_ARGS="MARKETING_VERSION=${GITHUB_REF_NAME#v} CURRENT_PROJECT_VERSION=${GITHUB_RUN_NUMBER}"
+          REL="${{ steps.rel.outputs.tag }}"
+          if [[ -n "$REL" ]]; then
+            VERSION_ARGS="MARKETING_VERSION=${REL#v} CURRENT_PROJECT_VERSION=${GITHUB_RUN_NUMBER}"
           fi
           xcodegen generate
           xcodebuild -project UniTime.xcodeproj -scheme UniTime -configuration Release \
@@ -72,11 +93,14 @@ jobs:
           retention-days: 30
 
       - name: Релиз
-        if: startsWith(github.ref, 'refs/tags/v') && hashFiles('project.yml') != ''
+        if: steps.rel.outputs.tag != '' && hashFiles('project.yml') != ''
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.rel.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: UniTime ${{ steps.rel.outputs.tag }}
           files: build/UniTime.ipa
-          generate_release_notes: true
+          body_path: .github/release-notes.md
 
   screens:
     # Запуск в симуляторе: приложение стартует, не падает, и видно, как выглядят экраны.
