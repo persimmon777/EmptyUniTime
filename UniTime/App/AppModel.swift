@@ -1,0 +1,156 @@
+import SwiftUI
+
+enum Tab: Int, CaseIterable {
+    case today, feed, deadlines, profile, search
+
+    var label: String {
+        switch self {
+        case .today: return "Сегодня"
+        case .feed: return "Пары"
+        case .deadlines: return "Дедлайны"
+        case .profile: return "Профиль"
+        case .search: return "Поиск"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .today: return "sun.max"
+        case .feed: return "list.bullet.rectangle"
+        case .deadlines: return "flag"
+        case .profile: return "person.crop.circle"
+        case .search: return "magnifyingglass"
+        }
+    }
+}
+
+/// Экраны поверх вкладок.
+enum Route: Hashable {
+    case lesson(Occurrence, own: Bool)
+    case other(Target)
+    case settings
+    case friends
+    case exams
+    case stats
+    case subjects
+    case iisSection(Iis.Kind)
+    case account
+}
+
+/// Состояние приложения: расписание, дедлайны, текущее время, сообщения.
+@MainActor
+final class AppModel: ObservableObject {
+    let store = Store.shared
+    @Published var schedule: Schedule?
+    @Published var loading = false
+    @Published var deadlines: [Deadline] = []
+    @Published var now = LocalDateTime.now()
+    @Published var toast: String?
+    @Published var editing: Deadline?
+    @Published var update: AppUpdate.Release?
+    @Published var tab: Tab = .today
+    @Published var paths: [Tab: [Route]] = [:]
+
+    private var timer: Timer?
+    private var toastTask: Task<Void, Never>?
+
+    init() {
+        schedule = store.load()
+        deadlines = store.deadlines()
+        tab = Tab(rawValue: AppSettings.shared.startTab) ?? .today
+        timer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.now = LocalDateTime.now() }
+        }
+    }
+
+    func path(_ t: Tab) -> Binding<[Route]> {
+        Binding(get: { self.paths[t] ?? [] }, set: { self.paths[t] = $0 })
+    }
+
+    /// Открыть экран на текущей вкладке.
+    func open(_ r: Route) {
+        if case .other(let t) = r { store.addRecent(t) }
+        paths[tab, default: []].append(r)
+    }
+
+    func back() {
+        if !(paths[tab] ?? []).isEmpty { paths[tab]?.removeLast() }
+    }
+
+    func show(_ text: String) {
+        toast = text
+        toastTask?.cancel()
+        toastTask = Task {
+            try? await Task.sleep(nanoseconds: 2_800_000_000)
+            if !Task.isCancelled { toast = nil }
+        }
+    }
+
+    func load(force: Bool) {
+        loading = true
+        Task {
+            let err = await Refresh.run(force: force)
+            schedule = store.load()
+            loading = false
+            if let e = err { show("Не удалось обновить: \(e.localizedDescription)") }
+            else if force { show("Расписание обновлено") }
+        }
+    }
+
+    /// Перечитать скрытые пары/дедлайны и перерисовать виджеты и напоминания.
+    func reloadLocal() {
+        schedule = store.load()
+        deadlines = store.deadlines()
+        Task { await Refresh.render() }
+    }
+
+    func saveDeadline(_ d: Deadline) {
+        store.saveDeadline(d)
+        editing = nil
+        reloadLocal()
+    }
+
+    func deleteDeadline(_ d: Deadline) {
+        store.deleteDeadline(d.id)
+        editing = nil
+        reloadLocal()
+    }
+
+    func newDeadline(subject: String = "", due: LocalDateTime? = nil) {
+        editing = Deadline(
+            id: Int64(Date().timeIntervalSince1970 * 1000),
+            title: "",
+            subject: subject,
+            due: due ?? LocalDate.today().plusDays(1).at(LocalTime(23, 59)),
+            done: false
+        )
+    }
+
+    func checkUpdate(manual: Bool) {
+        let st = AppSettings.shared
+        if !manual && !st.updateCheck { return }
+        if !manual {
+            let last = store.defaults.double(forKey: "updateCheckedAt")
+            if Date().timeIntervalSince1970 - last < 86400 { return }
+        }
+        Task {
+            do {
+                let r = try await AppUpdate.checkNewer()
+                store.defaults.set(Date().timeIntervalSince1970, forKey: "updateCheckedAt")
+                if let r = r { update = r }
+                else if manual { show("У тебя последняя версия \(AppUpdate.current)") }
+            } catch {
+                if manual { show("Не удалось проверить: нет связи") }
+            }
+        }
+    }
+
+    func unlockNeon() {
+        let st = AppSettings.shared
+        if st.neonUnlocked && st.theme == 4 { show("Ты уже в неоне ✨"); return }
+        let first = !st.neonUnlocked
+        st.neonUnlocked = true
+        st.theme = 4
+        show(first ? "Секретная тема «Неон» открыта! Вернуть обычную — в настройках" : "Снова неон ✨")
+    }
+}
