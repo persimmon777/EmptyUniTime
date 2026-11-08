@@ -82,6 +82,8 @@ struct RootView: View {
             )
         }
         .task {
+            // В CI делаем скриншоты в симуляторе — системные запросы разрешений там мешают.
+            if ProcessInfo.processInfo.arguments.contains("-screenshots") { return }
             if settings.onboarded {
                 await Notifications.requestPermission()
                 model.checkUpdate(manual: false)

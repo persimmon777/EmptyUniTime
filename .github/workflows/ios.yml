@@ -77,3 +77,53 @@ jobs:
         with:
           files: build/UniTime.ipa
           generate_release_notes: true
+
+  screens:
+    # Запуск в симуляторе: приложение стартует, не падает, и видно, как выглядят экраны.
+    if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Сборка для симулятора
+        run: |
+          brew install xcodegen
+          xcodegen generate
+          xcodebuild -project UniTime.xcodeproj -scheme UniTime -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build/sim \
+            CODE_SIGNING_ALLOWED=NO build > build.log 2>&1 || { grep -E "error:" -A4 build.log | head -200; exit 1; }
+      - name: Скриншоты
+        run: |
+          DEV=$(xcrun simctl list devices available | grep -m1 -E "iPhone 1[5-7] \(" | sed -E 's/.*\(([0-9A-F-]+)\).*/\1/')
+          echo "Симулятор: $DEV"
+          xcrun simctl boot "$DEV"
+          xcrun simctl bootstatus "$DEV" -b
+          xcrun simctl status_bar "$DEV" override --time "10:30" --batteryLevel 100 --cellularBars 4 || true
+          xcrun simctl install "$DEV" build/sim/Build/Products/Debug-iphonesimulator/UniTime.app
+          mkdir -p shots
+          shot() {
+            name=$1; shift
+            xcrun simctl terminate "$DEV" com.unitime.ios 2>/dev/null || true
+            xcrun simctl launch "$DEV" com.unitime.ios -screenshots "$@"
+            sleep 9
+            if xcrun simctl spawn "$DEV" launchctl list | grep -q com.unitime.ios; then echo "$name: работает"; else echo "::error::$name: приложение упало"; fi
+            xcrun simctl io "$DEV" screenshot "shots/$name.png"
+          }
+          shot 0-onboarding
+          G="-onboarded YES -group 572302 -subgroup 0"
+          shot 1-today $G -startTab 0
+          shot 2-feed $G -startTab 1
+          shot 3-deadlines $G -startTab 2
+          shot 4-profile $G -startTab 3
+          shot 5-search $G -startTab 4
+          shot 6-today-glass $G -startTab 0 -style 1
+          shot 7-today-color-dark $G -startTab 0 -style 2 -theme 3
+          shot 8-feed-neon $G -startTab 1 -theme 4
+          xcrun simctl spawn "$DEV" log show --last 3m --predicate 'process == "UniTime" AND messageType == fault' --style compact | tail -40 || true
+          ls shots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screens
+          path: shots
+          retention-days: 7
