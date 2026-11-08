@@ -267,7 +267,7 @@ struct DayView: View {
                     HStack(spacing: 8) {
                         Text(o.lesson.start.description).font(.roboto(13, .bold)).foregroundStyle(ongoing ? c.accent : c.ink)
                             .frame(width: 44, alignment: .leading)
-                        Text("\(o.lesson.subject) \(o.lesson.type)").font(.roboto(13, weight: ongoing ? .bold : .medium))
+                        Text("\(o.lesson.subject) \(o.lesson.type)").font(.roboto(13, ongoing ? .bold : .medium))
                             .foregroundStyle(ongoing ? c.accent : c.ink).lineLimit(1)
                         Spacer(minLength: 4)
                         Text(shortRoom(o.lesson.rooms)).font(.roboto(12)).foregroundStyle(c.muted).lineLimit(1)
